@@ -35,10 +35,26 @@ class MikrotikRouter(models.Model):
         if not routeros_api:
             raise UserError("Library 'routeros_api' belum terinstal di server Python Odoo. Jalankan 'pip install routeros-api'.")
         try:
-            connection = routeros_api.RouterOsApiConnection(
-                self.host, username=self.username, password=self.password, port=self.port
-            )
-            api = connection.connect()
+            if hasattr(routeros_api, 'RouterOsApiPool'):
+                connection = routeros_api.RouterOsApiPool(
+                    self.host,
+                    username=self.username,
+                    password=self.password,
+                    port=self.port,
+                    plaintext_login=True
+                )
+                api = connection.get_api()
+            elif hasattr(routeros_api, 'RouterOsApiConnection'):
+                connection = routeros_api.RouterOsApiConnection(
+                    self.host,
+                    username=self.username,
+                    password=self.password,
+                    port=self.port
+                )
+                api = connection.connect()
+            else:
+                raise UserError("Versi library routeros_api tidak memiliki class RouterOsApiPool.")
+
             self.write({
                 'status': 'connected',
                 'last_sync': fields.Datetime.now()
