@@ -40,6 +40,7 @@
                             <field name="port"/>
                             <field name="username"/>
                             <field name="password" password="True"/>
+                            <field name="timeout"/>
                             <field name="active"/>
                         </group>
                         <group string="Status &amp; Monitoring">
@@ -61,7 +62,7 @@
                 Tambahkan Router MikroTik pertama Anda!
             </p>
             <p>
-                Konfigurasikan alamat IP, port API (default 8728), serta username/password API RouterOS.
+                Konfigurasikan alamat IP/Domain Tunnel, port API (default 8728 atau port remote tunnel), serta username/password API RouterOS.
             </p>
         </field>
     </record>

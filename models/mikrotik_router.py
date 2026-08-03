@@ -20,7 +20,8 @@ class MikrotikRouter(models.Model):
     host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau Tunnel Remote (misal: id-4.tunnel.id)")
     username = fields.Char(string="Username API", required=True, default="admin")
     password = fields.Char(string="Password API", required=True)
-    port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port tunnel misal 682)")
+    port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel misal 682)")
+    timeout = fields.Integer(string="Timeout (Detik)", default=10, required=True, help="Waktu batas tunggu koneksi socket (default 10 detik)")
     active = fields.Boolean(string="Active", default=True)
     
     status = fields.Selection([
@@ -41,7 +42,8 @@ class MikrotikRouter(models.Model):
                     username=self.username,
                     password=self.password,
                     port=self.port,
-                    plaintext_login=True
+                    plaintext_login=True,
+                    timeout=self.timeout or 10
                 )
                 api = connection.get_api()
             elif hasattr(routeros_api, 'RouterOsApiConnection'):
