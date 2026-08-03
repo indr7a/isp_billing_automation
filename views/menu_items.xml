@@ -6,29 +6,11 @@
               sequence="15"
               web_icon="fa,fa-wifi,#1b2a4a,#ffffff"/>
 
-    <!-- Operations Menu Category -->
-    <menuitem id="menu_isp_operations"
-              name="Operasional"
-              parent="menu_isp_root"
-              sequence="10"/>
-
-    <menuitem id="menu_isp_subscribers"
-              name="Pelanggan (Subscribers)"
-              parent="menu_isp_operations"
-              action="action_isp_subscribers"
-              sequence="10"/>
-
-    <menuitem id="menu_isp_invoices"
-              name="Tagihan ISP (Invoices)"
-              parent="menu_isp_operations"
-              action="action_isp_invoices"
-              sequence="20"/>
-
-    <!-- Technical & Network Category -->
+    <!-- Jaringan & Router Category -->
     <menuitem id="menu_isp_network"
               name="Jaringan &amp; Router"
               parent="menu_isp_root"
-              sequence="20"/>
+              sequence="10"/>
 
     <menuitem id="menu_isp_routers"
               name="Router MikroTik"
