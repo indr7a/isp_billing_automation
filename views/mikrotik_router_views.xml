@@ -40,7 +40,6 @@
                             <field name="port"/>
                             <field name="username"/>
                             <field name="password" password="True"/>
-                            <field name="timeout"/>
                             <field name="active"/>
                         </group>
                         <group string="Status &amp; Monitoring">
