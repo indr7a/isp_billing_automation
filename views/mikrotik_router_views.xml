@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- MikroTik Router Tree View -->
+    <record id="view_mikrotik_router_tree" model="ir.ui.view">
+        <field name="name">isp.mikrotik.router.tree</field>
+        <field name="model">isp.mikrotik.router</field>
+        <field name="arch" type="xml">
+            <tree string="MikroTik Routers">
+                <field name="name"/>
+                <field name="host"/>
+                <field name="port"/>
+                <field name="username"/>
+                <field name="status" widget="badge" decoration-success="status == 'connected'" decoration-danger="status == 'error'"/>
+                <field name="last_sync"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- MikroTik Router Form View -->
+    <record id="view_mikrotik_router_form" model="ir.ui.view">
+        <field name="name">isp.mikrotik.router.form</field>
+        <field name="model">isp.mikrotik.router</field>
+        <field name="arch" type="xml">
+            <form string="MikroTik Router Configuration">
+                <header>
+                    <button name="action_test_connection" string="Test Connection" type="object" class="btn-primary" icon="fa-wifi"/>
+                    <field name="status" widget="statusbar" statusbar_visible="connected,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1>
+                            <field name="name" placeholder="e.g. Router Core Utama"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Connection Details">
+                            <field name="host"/>
+                            <field name="port"/>
+                            <field name="username"/>
+                            <field name="password" password="True"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Status &amp; Monitoring">
+                            <field name="last_sync"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- MikroTik Router Action -->
+    <record id="action_mikrotik_router" model="ir.actions.act_window">
+        <field name="name">MikroTik Routers</field>
+        <field name="res_model">isp.mikrotik.router</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tambahkan Router MikroTik pertama Anda!
+            </p>
+            <p>
+                Konfigurasikan alamat IP, port API (default 8728), serta username/password API RouterOS.
+            </p>
+        </field>
+    </record>
+</odoo>

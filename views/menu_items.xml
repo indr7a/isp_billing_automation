@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Top Level Menu -->
+    <menuitem id="menu_isp_root"
+              name="ISP Billing"
+              sequence="15"
+              web_icon="fa,fa-wifi,#1b2a4a,#ffffff"/>
+
+    <!-- Operations Menu Category -->
+    <menuitem id="menu_isp_operations"
+              name="Operasional"
+              parent="menu_isp_root"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_subscribers"
+              name="Pelanggan (Subscribers)"
+              parent="menu_isp_operations"
+              action="action_isp_subscribers"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_invoices"
+              name="Tagihan ISP (Invoices)"
+              parent="menu_isp_operations"
+              action="action_isp_invoices"
+              sequence="20"/>
+
+    <!-- Technical & Network Category -->
+    <menuitem id="menu_isp_network"
+              name="Jaringan &amp; Router"
+              parent="menu_isp_root"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_routers"
+              name="Router MikroTik"
+              parent="menu_isp_network"
+              action="action_mikrotik_router"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_logs"
+              name="Audit &amp; System Logs"
+              parent="menu_isp_network"
+              action="action_isp_logs"
+              sequence="20"/>
+
+    <!-- Settings Category -->
+    <menuitem id="menu_isp_config"
+              name="Pengaturan"
+              parent="menu_isp_root"
+              sequence="90"/>
+
+    <menuitem id="menu_isp_settings"
+              name="Settings"
+              parent="menu_isp_config"
+              action="action_isp_config_settings"
+              sequence="10"/>
+</odoo>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- System Logs Tree View -->
+    <record id="view_isp_log_tree" model="ir.ui.view">
+        <field name="name">isp.log.tree</field>
+        <field name="model">isp.log</field>
+        <field name="arch" type="xml">
+            <tree string="System Logs" create="false" edit="false">
+                <field name="timestamp"/>
+                <field name="source" widget="badge"/>
+                <field name="level" widget="badge" 
+                       decoration-info="level == 'info'" 
+                       decoration-success="level == 'success'" 
+                       decoration-warning="level == 'warning'" 
+                       decoration-danger="level == 'error'"/>
+                <field name="message"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- System Logs Form View -->
+    <record id="view_isp_log_form" model="ir.ui.view">
+        <field name="name">isp.log.form</field>
+        <field name="model">isp.log</field>
+        <field name="arch" type="xml">
+            <form string="System Log Detail" create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="timestamp"/>
+                            <field name="source"/>
+                            <field name="level"/>
+                        </group>
+                        <group>
+                            <field name="message"/>
+                        </group>
+                    </group>
+                    <group string="Detailed Output / Payload">
+                        <field name="details" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- System Logs Action -->
+    <record id="action_isp_logs" model="ir.actions.act_window">
+        <field name="name">ISP Audit &amp; System Logs</field>
+        <field name="res_model">isp.log</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

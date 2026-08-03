@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_isp_mikrotik_router_user,isp.mikrotik.router.user,model_isp_mikrotik_router,group_isp_user,1,0,0,0
+access_isp_mikrotik_router_manager,isp.mikrotik.router.manager,model_isp_mikrotik_router,group_isp_manager,1,1,1,1
+access_isp_log_user,isp.log.user,model_isp_log,group_isp_user,1,0,0,0
+access_isp_log_manager,isp.log.manager,model_isp_log,group_isp_manager,1,1,1,1

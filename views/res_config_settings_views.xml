@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_isp_inherit" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.isp.inherit</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="100"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="ISP Billing &amp; Automation" string="ISP Billing &amp; Automation" name="isp_billing_automation">
+                    <block title="WhatsApp Gateway Settings">
+                        <setting id="isp_wa_gateway_url_setting" help="HTTP POST API Endpoint (e.g. Fonnte / Wablas)">
+                            <field name="isp_wa_gateway_url"/>
+                        </setting>
+                        <setting id="isp_wa_gateway_token_setting" help="API Secret Token / Authorization Header">
+                            <field name="isp_wa_gateway_token" password="True"/>
+                        </setting>
+                    </block>
+                    <block title="Otomatisasi Isolir Layanan">
+                        <setting id="isp_isolation_grace_days_setting" help="Batas hari keterlambatan pembayaran sebelum akun MikroTik diisolir otomatis oleh Cron">
+                            <field name="isp_isolation_grace_days"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_isp_config_settings" model="ir.actions.act_window">
+        <field name="name">ISP Settings</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'isp_billing_automation'}</field>
+    </record>
+</odoo>

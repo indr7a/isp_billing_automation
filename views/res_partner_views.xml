@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Partner Form View Extension -->
+    <record id="view_partner_form_isp_inherit" model="ir.ui.view">
+        <field name="name">res.partner.form.isp.inherit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- Add Manual Action Buttons in Header -->
+            <xpath expr="//form/sheet" position="before">
+                <header>
+                    <button name="action_manual_enable_service" 
+                            string="Buka Isolir (Aktifkan)" 
+                            type="object" 
+                            class="btn-success" 
+                            icon="fa-check-circle"
+                            invisible="not is_isp_subscriber or service_status == 'active'"/>
+                    <button name="action_manual_disable_service" 
+                            string="Isolir Layanan" 
+                            type="object" 
+                            class="btn-danger" 
+                            icon="fa-ban"
+                            confirm="Apakah Anda yakin ingin mengisolir layanan pelanggan ini secara manual?"
+                            invisible="not is_isp_subscriber or service_status == 'isolated'"/>
+                </header>
+            </xpath>
+
+            <!-- Add ISP Notebook Page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="ISP Subscription" name="isp_subscription">
+                    <group>
+                        <group string="Subscription Profile">
+                            <field name="is_isp_subscriber"/>
+                            <field name="service_status" widget="badge" 
+                                   decoration-success="service_status == 'active'" 
+                                   decoration-warning="service_status == 'isolated'" 
+                                   decoration-danger="service_status == 'terminated'"/>
+                            <field name="isp_package_id"/>
+                            <field name="monthly_fee"/>
+                        </group>
+                        <group string="MikroTik &amp; WhatsApp Integration">
+                            <field name="ppp_username" placeholder="e.g. user_pppoe_01"/>
+                            <field name="mikrotik_id"/>
+                            <field name="wa_phone" placeholder="e.g. 628123456789"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Filter Action for ISP Subscribers -->
+    <record id="action_isp_subscribers" model="ir.actions.act_window">
+        <field name="name">ISP Subscribers</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">tree,form,kanban</field>
+        <field name="domain">[('is_isp_subscriber', '=', True)]</field>
+        <field name="context">{'default_is_isp_subscriber': True}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada pelanggan ISP terdaftar.
+            </p>
+        </field>
+    </record>
+</odoo>
