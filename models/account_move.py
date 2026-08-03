@@ -16,8 +16,8 @@ class AccountMove(models.Model):
         """Re-enables internet service on MikroTik & sends WA Thank You reactivation message"""
         for inv in self:
             partner = inv.partner_id
-            if partner.is_isp_subscriber and partner.ppp_username and partner.mikrotik_id:
-                success = partner.mikrotik_id.set_user_status(partner.ppp_username, True)
+            if partner.is_isp_subscriber and partner.mikrotik_id:
+                success = partner.mikrotik_id.set_subscriber_status(partner, True)
                 if success:
                     partner.service_status = 'active'
                     wa_msg = "Terima kasih. Layanan internet telah diaktifkan kembali secara otomatis."
@@ -76,7 +76,7 @@ class AccountMove(models.Model):
         for inv in invoices_to_isolate:
             partner = inv.partner_id
             if partner.is_isp_subscriber and partner.mikrotik_id and partner.service_status != 'isolated':
-                success = partner.mikrotik_id.set_user_status(partner.ppp_username, False)
+                success = partner.mikrotik_id.set_subscriber_status(partner, False)
                 if success:
                     partner.service_status = 'isolated'
                     inv.wa_isolir_sent = True
