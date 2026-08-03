@@ -6,6 +6,13 @@
               sequence="15"
               web_icon="fa,fa-wifi,#1b2a4a,#ffffff"/>
 
+    <!-- Dashboard Menu -->
+    <menuitem id="menu_isp_dashboard"
+              name="Dashboard"
+              parent="menu_isp_root"
+              action="action_isp_billing_dashboard"
+              sequence="1"/>
+
     <!-- Jaringan & Router Category -->
     <menuitem id="menu_isp_network"
               name="Jaringan &amp; Router"

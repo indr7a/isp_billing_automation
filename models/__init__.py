@@ -5,3 +5,4 @@ from . import account_move
 from . import isp_log
 from . import aging_ar_calculator
 from . import res_config_settings
+from . import dashboard_service
