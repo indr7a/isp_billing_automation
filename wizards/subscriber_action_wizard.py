@@ -14,8 +14,13 @@ class ISPSubscriberActionWizard(models.TransientModel):
     ], string="Aksi Layanan", required=True, readonly=True)
 
     send_wa = fields.Boolean(string="Kirim Notifikasi WhatsApp", default=True)
-    wa_phone = fields.Char(related="partner_id.wa_phone", string="Nomor WhatsApp Tujuan", readonly=True)
+    wa_phone = fields.Char(string="Nomor WhatsApp Tujuan", compute="_compute_wa_phone", readonly=True)
     wa_message = fields.Text(string="Pesan WhatsApp", required=True)
+
+    @api.depends('partner_id.mobile', 'partner_id.phone')
+    def _compute_wa_phone(self):
+        for rec in self:
+            rec.wa_phone = rec.partner_id.mobile or rec.partner_id.phone or '-'
 
     @api.model
     def default_get(self, fields_list):
