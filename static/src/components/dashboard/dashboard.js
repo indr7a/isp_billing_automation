@@ -208,7 +208,7 @@ export class ISPBillingDashboard extends Component {
             type: 'ir.actions.act_window',
             name: 'Pelanggan Terisolir',
             res_model: 'res.partner',
-            domain: [['is_isp_subscriber', '=', true], '|', ['service_status', '=', 'isolated'], ['ip_address', '!=', False]],
+            domain: [['is_isp_subscriber', '=', true], ['service_status', '=', 'isolated']],
             views: [[false, 'tree'], [false, 'form']],
         });
     }
