@@ -18,10 +18,17 @@
                     <button name="action_manual_disable_service" 
                             string="Isolir Layanan" 
                             type="object" 
-                            class="btn-danger" 
+                            class="btn-warning" 
                             icon="fa-ban"
                             confirm="Apakah Anda yakin ingin mengisolir layanan pelanggan ini secara manual?"
                             invisible="not is_isp_subscriber or service_status == 'isolated'"/>
+                    <button name="action_manual_terminate_service" 
+                            string="Putus Layanan (Terminate)" 
+                            type="object" 
+                            class="btn-danger" 
+                            icon="fa-times-circle"
+                            confirm="Apakah Anda yakin ingin MEMUTUS (Terminate) berlangganan pelanggan ini?"
+                            invisible="not is_isp_subscriber or service_status == 'terminated'"/>
                 </header>
             </xpath>
 
@@ -35,10 +42,7 @@
                     </group>
                     <group invisible="not is_isp_subscriber">
                         <group string="Subscription Profile">
-                            <field name="service_status" widget="badge" 
-                                   decoration-success="service_status == 'active'" 
-                                   decoration-warning="service_status == 'isolated'" 
-                                   decoration-danger="service_status == 'terminated'"/>
+                            <field name="service_status" widget="selection"/>
                             <field name="isp_package_id"/>
                             <field name="monthly_fee"/>
                         </group>

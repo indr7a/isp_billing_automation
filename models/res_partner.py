@@ -23,7 +23,7 @@ class ResPartner(models.Model):
     service_status = fields.Selection([
         ('active', 'Active'),
         ('isolated', 'Isolated (Isolir)'),
-        ('terminated', 'Terminated')
+        ('terminated', 'Terminated (Putus)')
     ], string="ISP Service Status", default='active', index=True)
     
     isp_package_id = fields.Many2one('product.product', string="Internet Package", domain="[('type', '=', 'service')]")
@@ -90,25 +90,31 @@ class ResPartner(models.Model):
             return False
 
     def action_manual_enable_service(self):
-        """Manual Un-isolir Button"""
+        """Manual Un-isolir / Activate Button"""
         for partner in self:
-            if not partner.mikrotik_id:
-                raise UserError("Partner belum dikonfigurasi MikroTik Router.")
-            success = partner.mikrotik_id.set_subscriber_status(partner, True)
-            if success:
-                partner.service_status = 'active'
-                ident = partner.ip_address or partner.ppp_username or partner.name
-                wa_msg = f"Yth. {partner.name}, layanan internet Anda ({ident}) telah DIAKTIFKAN KEMBALI secara manual oleh Admin."
-                partner.send_wa_notification(wa_msg)
+            if partner.mikrotik_id:
+                partner.mikrotik_id.set_subscriber_status(partner, True)
+            partner.service_status = 'active'
+            ident = partner.ip_address or partner.ppp_username or partner.name
+            wa_msg = f"Yth. {partner.name}, layanan internet Anda ({ident}) telah DIAKTIFKAN KEMBALI secara manual oleh Admin."
+            partner.send_wa_notification(wa_msg)
 
     def action_manual_disable_service(self):
         """Manual Isolir Button"""
         for partner in self:
-            if not partner.mikrotik_id:
-                raise UserError("Partner belum dikonfigurasi MikroTik Router.")
-            success = partner.mikrotik_id.set_subscriber_status(partner, False)
-            if success:
-                partner.service_status = 'isolated'
-                ident = partner.ip_address or partner.ppp_username or partner.name
-                wa_msg = f"PERHATIAN: Layanan internet Anda ({ident}) telah DI-ISOLIR oleh Admin."
-                partner.send_wa_notification(wa_msg)
+            if partner.mikrotik_id:
+                partner.mikrotik_id.set_subscriber_status(partner, False)
+            partner.service_status = 'isolated'
+            ident = partner.ip_address or partner.ppp_username or partner.name
+            wa_msg = f"PERHATIAN: Layanan internet Anda ({ident}) telah DI-ISOLIR oleh Admin."
+            partner.send_wa_notification(wa_msg)
+
+    def action_manual_terminate_service(self):
+        """Manual Terminate Service Button"""
+        for partner in self:
+            if partner.mikrotik_id:
+                partner.mikrotik_id.set_subscriber_status(partner, False)
+            partner.service_status = 'terminated'
+            ident = partner.ip_address or partner.ppp_username or partner.name
+            wa_msg = f"PERHATIAN: Berlangganan layanan internet Anda ({ident}) telah DIPUTUS (Terminated) secara resmi oleh Admin."
+            partner.send_wa_notification(wa_msg)
