@@ -20,22 +20,24 @@ class MikrotikRouter(models.Model):
     host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau Tunnel Remote (misal: id-4.tunnel.id)")
     username = fields.Char(string="Username API", required=True, default="admin")
     password = fields.Char(string="Password API", required=True)
-    port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel misal 682)")
+    port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel API misal 682)")
     active = fields.Boolean(string="Active", default=True)
     
     status = fields.Selection([
+        ('draft', 'Not Tested'),
         ('connected', 'Connected'),
         ('error', 'Connection Error')
-    ], string="Status", default='connected', readonly=True)
+    ], string="Status", default='draft', readonly=True)
     last_sync = fields.Datetime(string="Last Sync Date", readonly=True)
 
     def get_connection(self):
-        """Creates RouterOS API Connection"""
+        """Creates RouterOS API Connection with fallback authentication support"""
         self.ensure_one()
         if not routeros_api:
             raise UserError("Library 'routeros_api' belum terinstal di server Python Odoo. Jalankan 'pip install routeros-api'.")
         try:
-            if hasattr(routeros_api, 'RouterOsApiPool'):
+            # 1. Attempt Plaintext Login (RouterOS v6.43+ and v7.x)
+            try:
                 connection = routeros_api.RouterOsApiPool(
                     self.host,
                     username=self.username,
@@ -44,16 +46,17 @@ class MikrotikRouter(models.Model):
                     plaintext_login=True
                 )
                 api = connection.get_api()
-            elif hasattr(routeros_api, 'RouterOsApiConnection'):
-                connection = routeros_api.RouterOsApiConnection(
+            except Exception as e_pt:
+                _logger.info(f"Plaintext API login failed for {self.host}:{self.port}, fallback to classic MD5 login: {str(e_pt)}")
+                # 2. Fallback to Classic MD5 Challenge Login (RouterOS < v6.43)
+                connection = routeros_api.RouterOsApiPool(
                     self.host,
                     username=self.username,
                     password=self.password,
-                    port=self.port
+                    port=self.port,
+                    plaintext_login=False
                 )
-                api = connection.connect()
-            else:
-                raise UserError("Versi library routeros_api tidak memiliki class RouterOsApiPool.")
+                api = connection.get_api()
 
             self.write({
                 'status': 'connected',
