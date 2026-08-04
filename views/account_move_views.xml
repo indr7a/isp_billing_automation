@@ -8,8 +8,8 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='payment_reference']" position="after">
                 <field name="is_isp_invoice"/>
-                <field name="wa_reminder_sent" readonly="1" invisible="not is_isp_invoice"/>
-                <field name="wa_isolir_sent" readonly="1" invisible="not is_isp_invoice"/>
+                <field name="wa_reminder_sent" invisible="not is_isp_invoice" help="Dicentang otomatis oleh sistem saat WA Pengingat H-3 terkirim. Bisa dicentang/didecentang manual jika ingin mengirim ulang WA."/>
+                <field name="wa_isolir_sent" invisible="not is_isp_invoice" help="Dicentang otomatis oleh sistem saat WA Pemberitahuan Isolir H+15 terkirim."/>
             </xpath>
         </field>
     </record>
