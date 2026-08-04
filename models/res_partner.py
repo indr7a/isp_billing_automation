@@ -29,7 +29,6 @@ class ResPartner(models.Model):
     
     isp_package_id = fields.Many2one('product.product', string="Internet Package", domain="[('type', '=', 'service')]")
     monthly_fee = fields.Float(string="Monthly Subscription Fee", help="Tarif iuran bulanan riil untuk pelanggan ini (Otomatis terisi dari Sales Price produk, namun bisa disesuaikan manual)")
-    wa_phone = fields.Char(string="WhatsApp Phone", help="Nomor WhatsApp kontak pelanggan (misal: 628123456789)")
 
     @api.onchange('is_isp_subscriber')
     def _onchange_is_isp_subscriber(self):
@@ -65,11 +64,11 @@ class ResPartner(models.Model):
             }
 
     def send_wa_notification(self, message):
-        """Sends WhatsApp message via fs_whatsapp_connector (whatsapp.account) or fallback HTTP Gateway"""
+        """Sends WhatsApp message via fs_whatsapp_connector (whatsapp.account) or fallback HTTP Gateway using default mobile/phone"""
         self.ensure_one()
-        phone = self.wa_phone or self.mobile or self.phone
+        phone = self.mobile or self.phone
         if not phone:
-            _logger.warning(f"No phone number configured for partner {self.name}")
+            _logger.warning(f"No phone/mobile number configured for partner {self.name}")
             return False
             
         phone = phone.replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')

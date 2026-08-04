@@ -59,7 +59,6 @@
                             <field name="simple_queue_name" invisible="connection_type != 'static'" placeholder="e.g. Client-Ahmad"/>
                             <field name="ppp_username" invisible="connection_type != 'pppoe'" placeholder="e.g. user_pppoe_01"/>
                             <field name="ppp_password" invisible="connection_type != 'pppoe'" password="True" placeholder="Password PPPoE"/>
-                            <field name="wa_phone" placeholder="e.g. 628123456789"/>
                         </group>
                     </group>
                 </page>
