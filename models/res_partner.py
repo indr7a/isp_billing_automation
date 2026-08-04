@@ -27,8 +27,14 @@ class ResPartner(models.Model):
     ], string="ISP Service Status", default='active', index=True)
     
     isp_package_id = fields.Many2one('product.product', string="Internet Package", domain="[('type', '=', 'service')]")
-    monthly_fee = fields.Float(string="Monthly Subscription Fee")
+    monthly_fee = fields.Float(string="Monthly Subscription Fee", help="Tarif iuran bulanan riil untuk pelanggan ini (Otomatis terisi dari Sales Price produk, namun bisa disesuaikan manual)")
     wa_phone = fields.Char(string="WhatsApp Phone", help="Nomor WhatsApp kontak pelanggan (misal: 628123456789)")
+
+    @api.onchange('isp_package_id')
+    def _onchange_isp_package_id(self):
+        """Auto-fill monthly_fee from product sales price (lst_price) when package changes"""
+        if self.isp_package_id:
+            self.monthly_fee = self.isp_package_id.lst_price
 
     def send_wa_notification(self, message):
         """Sends WhatsApp message via Gateway API (e.g. Fonnte / Wablas)"""
