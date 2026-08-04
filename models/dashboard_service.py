@@ -60,12 +60,6 @@ class ISPDashboardService(models.AbstractModel):
             unpaid_domain.extend(['|', ('is_isp_invoice', '=', True), ('partner_id.is_isp_subscriber', '=', True)])
 
         unpaid_invoices = Move.search(unpaid_domain)
-        # Filter unpaid invoices to only include partners in current company's subscriber scope
-        if subscribers:
-            unpaid_invoices = unpaid_invoices.filtered(lambda inv: inv.partner_id in subscribers or inv.is_isp_invoice)
-        else:
-            unpaid_invoices = unpaid_invoices.filtered(lambda inv: inv.is_isp_invoice)
-
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
 
