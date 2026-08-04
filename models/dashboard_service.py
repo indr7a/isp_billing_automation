@@ -10,7 +10,7 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Live Traffic Stats)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Non-blocking Traffic Stats)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
@@ -40,16 +40,15 @@ class ISPDashboardService(models.AbstractModel):
         total_routers = len(routers)
         connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
 
-        # Interface Traffic Stats (Real-time from MikroTik)
+        # Interface Traffic Stats (Only poll routers marked as 'connected' to prevent dashboard timeout)
         traffic_interfaces = []
-        for router in routers:
+        for router in routers.filtered(lambda r: r.status == 'connected'):
             try:
                 conn, api_conn = router.get_connection()
                 if api_conn:
                     if_resource = api_conn.get_resource('/interface')
                     interfaces = if_resource.get()
                     
-                    # Fetch monitor-traffic if available
                     for item in interfaces[:6]: # Limit to top 6 interfaces per router
                         if_name = item.get('name', '')
                         is_running = item.get('running') == 'true' or item.get('running') == True
@@ -58,12 +57,9 @@ class ISPDashboardService(models.AbstractModel):
                         rx_byte = int(item.get('rx-byte', 0))
                         tx_byte = int(item.get('tx-byte', 0))
 
-                        # Attempt to query monitor-traffic for live bps
                         rx_bps = 0
                         tx_bps = 0
                         try:
-                            mon_res = api_conn.get_resource('/interface')
-                            # monitor-traffic call
                             traffic_mon = api_conn.get_binary_resource('/').call('interface/monitor-traffic', {
                                 'interface': if_name,
                                 'once': ''
@@ -89,7 +85,7 @@ class ISPDashboardService(models.AbstractModel):
                         })
                     conn.disconnect()
             except Exception as e:
-                _logger.warning(f"Could not fetch traffic stats from router {router.name}: {str(e)}")
+                _logger.warning(f"Bypassing traffic stats for router {router.name}: {str(e)}")
 
         # Recent Logs (latest 5)
         recent_logs_records = Log.search([], limit=5, order='timestamp desc, id desc')
