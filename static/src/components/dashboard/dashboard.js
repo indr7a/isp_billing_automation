@@ -223,18 +223,7 @@ export class ISPBillingDashboard extends Component {
     }
 
     openUnpaidInvoices() {
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: 'Invoice Unpaid (Tunggakan ISP)',
-            res_model: 'account.move',
-            domain: [
-                ['move_type', '=', 'out_invoice'],
-                ['state', '=', 'posted'],
-                ['payment_state', 'not in', ['paid', 'in_payment', 'reversed']],
-                '|', ['is_isp_invoice', '=', true], ['partner_id.is_isp_subscriber', '=', true]
-            ],
-            views: [[false, 'tree'], [false, 'form']],
-        });
+        this.action.doAction('isp_billing_automation.action_isp_unpaid_invoices');
     }
 
     openRouters() {
