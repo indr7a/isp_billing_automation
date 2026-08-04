@@ -39,7 +39,9 @@ class ISPDashboardService(models.AbstractModel):
             ]
 
         subscribers = Partner.search(subscribers_domain)
-        total_subscribers = len(subscribers)
+        active_subscribers_list = subscribers.filtered(lambda s: s.service_status != 'terminated')
+
+        total_subscribers = len(subscribers.filtered(lambda s: s.service_status != 'terminated'))
         mrr = sum(subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
 
         # 3. Invoices metrics - Integrated with subscription_package & Odoo account.move for ISP Subscribers
@@ -170,7 +172,7 @@ class ISPDashboardService(models.AbstractModel):
                     except Exception as e_nb:
                         _logger.warning(f"Could not fetch neighbors: {str(e_nb)}")
 
-                    # Simple Queue Subscriber Traffic (With Topology Sub-Nodes)
+                    # Simple Queue Subscriber Traffic (With Strict Priority Matching for Recycled IPs)
                     try:
                         sq_resource = api_conn.get_resource('/queue/simple')
                         queues = sq_resource.get()
@@ -190,10 +192,18 @@ class ISPDashboardService(models.AbstractModel):
                             tx_bytes = int(bytes_parts[0]) if len(bytes_parts) > 0 and bytes_parts[0].isdigit() else 0
                             rx_bytes = int(bytes_parts[1]) if len(bytes_parts) > 1 and bytes_parts[1].isdigit() else 0
 
-                            # Match with registered Odoo Subscribers
-                            partner = subscribers.filtered(
-                                lambda s: s.simple_queue_name == q_name or s.ip_address == clean_ip or (s.name == q_name and s.is_isp_subscriber)
-                            )
+                            # Priority Matching Logic for Recycled IPs:
+                            # 1. Match by Simple Queue Name on active/isolated subscribers
+                            partner = active_subscribers_list.filtered(lambda s: s.simple_queue_name == q_name)
+                            # 2. Fallback match by IP Address on active/isolated subscribers
+                            if not partner and clean_ip:
+                                partner = active_subscribers_list.filtered(lambda s: s.ip_address == clean_ip)
+                            # 3. Fallback match by Name on active/isolated subscribers
+                            if not partner:
+                                partner = active_subscribers_list.filtered(lambda s: s.name == q_name)
+                            # 4. Ultimate fallback to all subscribers including terminated
+                            if not partner:
+                                partner = subscribers.filtered(lambda s: s.simple_queue_name == q_name or (clean_ip and s.ip_address == clean_ip))
 
                             if not partner and rx_bps == 0 and tx_bps == 0:
                                 continue
