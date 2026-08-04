@@ -33,10 +33,10 @@ export class ISPBillingDashboard extends Component {
 
         onWillStart(async () => {
             await this.loadDashboardData();
-            // Auto refresh traffic & dashboard metrics every 15 seconds
+            // Fast Auto Refresh traffic like Winbox (every 3 seconds)
             this.refreshInterval = setInterval(() => {
                 this.loadDashboardData(true);
-            }, 15000);
+            }, 3000);
         });
 
         onWillUnmount(() => {

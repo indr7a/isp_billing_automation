@@ -102,14 +102,16 @@
                     </div>
                 </div>
 
-                <!-- Interface Traffic Section (Replaces Aging AR) -->
+                <!-- Interface Traffic Section (Live Auto Refresh 3s) -->
                 <div class="col-12 col-lg-8">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h5 class="fw-bold text-dark mb-0">
                                 <i class="fa fa-area-chart text-success me-2"></i>Status Traffic &amp; Bandwidth Interface MikroTik
                             </h5>
-                            <span class="badge bg-light text-dark font-monospace">Auto Refresh (15s)</span>
+                            <span class="badge bg-success text-white font-monospace">
+                                <i class="fa fa-refresh fa-spin me-1"></i> Live (3s)
+                            </span>
                         </div>
                         <div class="card-body">
                             <div t-if="!state.data.traffic_interfaces.length" class="text-center py-4 text-muted">

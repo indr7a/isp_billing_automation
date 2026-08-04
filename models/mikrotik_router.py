@@ -93,6 +93,74 @@ class MikrotikRouter(models.Model):
                 }
             }
 
+    def action_sync_simple_queues(self):
+        """Syncs / Imports Simple Queues from MikroTik into Odoo ResPartner subscribers"""
+        for router in self:
+            connection, api_conn = router.get_connection()
+            try:
+                queue_resource = api_conn.get_resource('/queue/simple')
+                queues = queue_resource.get()
+                
+                Partner = self.env['res.partner']
+                created_count = 0
+                updated_count = 0
+                
+                for q in queues:
+                    q_name = q.get('name')
+                    q_target = q.get('target', '')
+                    clean_ip = q_target.split('/')[0] if q_target else ''
+                    
+                    if not q_name:
+                        continue
+
+                    # Search existing partner by Simple Queue Name or IP Address or Name
+                    domain = ['|', '|',
+                        ('simple_queue_name', '=', q_name),
+                        ('ip_address', '=', clean_ip),
+                        ('name', '=', q_name)
+                    ]
+                    partner = Partner.search(domain, limit=1)
+                    
+                    values = {
+                        'is_isp_subscriber': True,
+                        'connection_type': 'static',
+                        'mikrotik_id': router.id,
+                        'simple_queue_name': q_name,
+                        'ip_address': clean_ip or (partner.ip_address if partner else False),
+                    }
+                    
+                    if partner:
+                        partner.write(values)
+                        updated_count += 1
+                    else:
+                        values['name'] = q_name
+                        Partner.create(values)
+                        created_count += 1
+
+                connection.disconnect()
+
+                self.env['isp.log'].create({
+                    'source': 'mikrotik',
+                    'level': 'success',
+                    'message': f"Sinkronisasi Simple Queue MikroTik '{router.name}' berhasil",
+                    'details': f"Dibuat: {created_count} pelanggan baru, Diperbarui: {updated_count} pelanggan"
+                })
+
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Sinkronisasi Berhasil',
+                        'message': f"Berhasil menyinkronkan {len(queues)} Simple Queue dari MikroTik! ({created_count} baru, {updated_count} diperbarui)",
+                        'sticky': False,
+                        'type': 'success'
+                    }
+                }
+            except Exception as e:
+                connection.disconnect()
+                _logger.error(f"Error syncing simple queues: {str(e)}")
+                raise UserError(f"Gagal melakukan sinkronisasi Simple Queue: {str(e)}")
+
     def set_subscriber_status(self, partner, status):
         """
         status: True for Enable (Un-isolir), False for Disable (Isolir)

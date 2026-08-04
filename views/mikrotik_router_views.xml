@@ -25,6 +25,7 @@
             <form string="MikroTik Router Configuration">
                 <header>
                     <button name="action_test_connection" string="Test Connection" type="object" class="btn-primary" icon="fa-wifi"/>
+                    <button name="action_sync_simple_queues" string="Sync Simple Queues" type="object" class="btn-secondary" icon="fa-refresh" help="Impor / Sinkronkan seluruh data pelanggan dari Simple Queue MikroTik ke Odoo"/>
                     <field name="status" widget="statusbar" statusbar_visible="connected,error"/>
                 </header>
                 <sheet>
