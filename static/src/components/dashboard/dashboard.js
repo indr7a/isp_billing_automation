@@ -57,7 +57,21 @@ export class ISPBillingDashboard extends Component {
                 "get_dashboard_data",
                 []
             );
-            this.state.data = res;
+            if (res) {
+                this.state.data = {
+                    total_subscribers: res.total_subscribers || 0,
+                    active_subscribers: res.active_subscribers || 0,
+                    isolated_subscribers: res.isolated_subscribers || 0,
+                    mrr: res.mrr || 0,
+                    total_unpaid_amount: res.total_unpaid_amount || 0,
+                    unpaid_count: res.unpaid_count || 0,
+                    total_routers: res.total_routers || 0,
+                    connected_routers: res.connected_routers || 0,
+                    traffic_interfaces: res.traffic_interfaces || [],
+                    subscriber_traffics: res.subscriber_traffics || [],
+                    recent_logs: res.recent_logs || [],
+                };
+            }
         } catch (error) {
             console.error("Failed to load ISP Dashboard Data", error);
         } finally {

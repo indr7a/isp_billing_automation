@@ -112,7 +112,7 @@
                             <span class="badge bg-success text-white font-monospace">Live (3s)</span>
                         </div>
                         <div class="card-body py-2">
-                            <div t-if="!state.data.traffic_interfaces.length" class="text-muted small py-2">
+                            <div t-if="!(state.data.traffic_interfaces &amp;&amp; state.data.traffic_interfaces.length)" class="text-muted small py-2">
                                 Belum ada interface terdeteksi.
                             </div>
                             <div t-else="" class="row g-2">
@@ -142,11 +142,11 @@
                                 <i class="fa fa-tachometer text-primary me-2"></i>Traffic Pelanggan Aktif (Real-Time Live Rate)
                             </h5>
                             <span class="badge bg-primary text-white font-monospace">
-                                <t t-out="state.data.subscriber_traffics.length"/> Pelanggan Live
+                                <t t-out="(state.data.subscriber_traffics &amp;&amp; state.data.subscriber_traffics.length) || 0"/> Pelanggan Live
                             </span>
                         </div>
                         <div class="card-body">
-                            <div t-if="!state.data.subscriber_traffics.length" class="text-center py-4 text-muted">
+                            <div t-if="!(state.data.subscriber_traffics &amp;&amp; state.data.subscriber_traffics.length)" class="text-center py-4 text-muted">
                                 <i class="fa fa-users fa-2x mb-2 text-secondary"></i>
                                 <p class="mb-0">Belum ada traffic pelanggan terpantau (Pastikan Simple Queue MikroTik telah dikonfigurasi/disinkronkan).</p>
                             </div>
@@ -220,7 +220,7 @@
                             <button class="btn btn-sm btn-link p-0" t-on-click="openLogs">Lihat Semua</button>
                         </div>
                         <div class="card-body p-2">
-                            <div t-if="!state.data.recent_logs.length" class="text-muted text-center py-3 small">
+                            <div t-if="!(state.data.recent_logs &amp;&amp; state.data.recent_logs.length)" class="text-muted text-center py-3 small">
                                 Belum ada log aktivitas.
                             </div>
                             <div t-else="" class="list-group list-group-flush">
