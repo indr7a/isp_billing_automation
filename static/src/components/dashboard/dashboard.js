@@ -25,6 +25,7 @@ export class ISPBillingDashboard extends Component {
                 total_routers: 0,
                 connected_routers: 0,
                 traffic_interfaces: [],
+                subscriber_traffics: [],
                 recent_logs: [],
             }
         });

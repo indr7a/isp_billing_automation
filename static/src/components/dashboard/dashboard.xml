@@ -7,11 +7,11 @@
                 <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                     <div>
                         <div class="badge bg-info text-dark mb-2 font-monospace">
-                            <i class="fa fa-circle text-success me-1"></i> Odoo 17 ISP Automation &amp; Real-time Traffic
+                            <i class="fa fa-circle text-success me-1"></i> Odoo 17 ISP Traffic &amp; Subscriber Monitor
                         </div>
-                        <h2 class="fw-bold mb-1">ISP Billing &amp; MikroTik Traffic Center</h2>
+                        <h2 class="fw-bold mb-1">ISP Billing &amp; MikroTik Control Center</h2>
                         <p class="text-white-50 mb-0 small">
-                            Otomatisasi isolir pengguna berdasarkan jatuh tempo tagihan, notifikasi WhatsApp H-3 &amp; H+15, serta monitoring lalu lintas data (traffic interface) real-time MikroTik.
+                            Monitoring traffic real-time pelanggan aktif, otomatisasi pemblokiran tagihan, dan pengiriman notifikasi WhatsApp.
                         </p>
                     </div>
                     <div class="d-flex gap-2">
@@ -32,7 +32,7 @@
             <!-- Loading Spinner -->
             <div t-if="state.loading" class="text-center py-5">
                 <i class="fa fa-circle-o-notch fa-spin fa-3x text-primary mb-3"></i>
-                <p class="text-muted">Memuat data statistik &amp; status traffic MikroTik...</p>
+                <p class="text-muted">Memuat data statistik &amp; traffic pelanggan MikroTik...</p>
             </div>
 
             <!-- Dashboard Content -->
@@ -102,59 +102,91 @@
                     </div>
                 </div>
 
-                <!-- Interface Traffic Section (Live Auto Refresh 3s) -->
+                <!-- Compact Interface Traffic Row -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold text-dark mb-0">
+                                <i class="fa fa-server text-info me-2"></i>Status Ringkas Interface Router MikroTik
+                            </h6>
+                            <span class="badge bg-success text-white font-monospace">Live (3s)</span>
+                        </div>
+                        <div class="card-body py-2">
+                            <div t-if="!state.data.traffic_interfaces.length" class="text-muted small py-2">
+                                Belum ada interface terdeteksi.
+                            </div>
+                            <div t-else="" class="row g-2">
+                                <div t-foreach="state.data.traffic_interfaces" t-as="iface" t-key="iface.router_name + '_' + iface.name" class="col-12 col-sm-6 col-md-3">
+                                    <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold small text-dark" t-out="iface.name"/>
+                                            <div class="text-muted" style="font-size: 10px;" t-out="iface.router_name"/>
+                                        </div>
+                                        <div class="text-end">
+                                            <span t-if="iface.running" class="badge bg-success" style="font-size: 10px;">UP</span>
+                                            <span t-else="" class="badge bg-secondary" style="font-size: 10px;">DOWN</span>
+                                            <div class="text-muted font-monospace" style="font-size: 10px;" t-out="formatBytes(iface.rx_bytes + iface.tx_bytes)"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Subscriber Traffic Section -->
                 <div class="col-12 col-lg-8">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h5 class="fw-bold text-dark mb-0">
-                                <i class="fa fa-area-chart text-success me-2"></i>Status Traffic &amp; Bandwidth Interface MikroTik
+                                <i class="fa fa-tachometer text-primary me-2"></i>Traffic Pelanggan Aktif (Real-Time Live Rate)
                             </h5>
-                            <span class="badge bg-success text-white font-monospace">
-                                <i class="fa fa-refresh fa-spin me-1"></i> Live (3s)
+                            <span class="badge bg-primary text-white font-monospace">
+                                <t t-out="state.data.subscriber_traffics.length"/> Pelanggan Live
                             </span>
                         </div>
                         <div class="card-body">
-                            <div t-if="!state.data.traffic_interfaces.length" class="text-center py-4 text-muted">
-                                <i class="fa fa-wifi fa-2x mb-2 text-secondary"></i>
-                                <p class="mb-0">Belum ada data traffic interface (Pastikan Router MikroTik terhubung).</p>
+                            <div t-if="!state.data.subscriber_traffics.length" class="text-center py-4 text-muted">
+                                <i class="fa fa-users fa-2x mb-2 text-secondary"></i>
+                                <p class="mb-0">Belum ada traffic pelanggan terpantau (Pastikan Simple Queue MikroTik telah dikonfigurasi/disinkronkan).</p>
                             </div>
                             <div t-else="" class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>Router &amp; Interface</th>
+                                            <th>Pelanggan &amp; Queue</th>
+                                            <th>IP Address</th>
                                             <th class="text-center">Status</th>
-                                            <th class="text-end">Download (RX)</th>
-                                            <th class="text-end">Upload (TX)</th>
-                                            <th class="text-end">Total Traffic</th>
+                                            <th class="text-end">Download (RX Rate)</th>
+                                            <th class="text-end">Upload (TX Rate)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr t-foreach="state.data.traffic_interfaces" t-as="item" t-key="item.router_name + '_' + item.name">
+                                        <tr t-foreach="state.data.subscriber_traffics" t-as="sub" t-key="sub.name + '_' + sub.queue_name">
                                             <td>
-                                                <div class="fw-bold text-dark" t-out="item.name"/>
+                                                <div class="fw-bold text-dark" t-out="sub.name"/>
                                                 <div class="text-muted font-monospace" style="font-size: 11px;">
-                                                    <i class="fa fa-server me-1"></i><t t-out="item.router_name"/> (<t t-out="item.type"/>)
+                                                    <i class="fa fa-align-left me-1"></i><t t-out="sub.queue_name"/>
                                                 </div>
                                             </td>
+                                            <td class="font-monospace small text-muted">
+                                                <t t-out="sub.ip_address || '-'"/>
+                                            </td>
                                             <td class="text-center">
-                                                <span t-if="item.running" class="badge bg-success">
-                                                    <i class="fa fa-arrow-up me-1"></i> Running
+                                                <span t-if="!sub.is_disabled" class="badge bg-success">
+                                                    <i class="fa fa-check me-1"></i> Aktif
                                                 </span>
-                                                <span t-else="" class="badge bg-secondary">
-                                                    <i class="fa fa-arrow-down me-1"></i> Link Down
+                                                <span t-else="" class="badge bg-danger">
+                                                    <i class="fa fa-ban me-1"></i> Isolir
                                                 </span>
                                             </td>
                                             <td class="text-end fw-bold text-success">
-                                                <i class="fa fa-download me-1 opacity-50"></i>
-                                                <t t-out="formatSpeed(item.rx_bps)"/>
+                                                <i class="fa fa-arrow-down me-1 opacity-50"></i>
+                                                <t t-out="formatSpeed(sub.rx_bps)"/>
                                             </td>
                                             <td class="text-end fw-bold text-primary">
-                                                <i class="fa fa-upload me-1 opacity-50"></i>
-                                                <t t-out="formatSpeed(item.tx_bps)"/>
-                                            </td>
-                                            <td class="text-end font-monospace text-muted small">
-                                                RX: <t t-out="formatBytes(item.rx_bytes)"/> / TX: <t t-out="formatBytes(item.tx_bytes)"/>
+                                                <i class="fa fa-arrow-up me-1 opacity-50"></i>
+                                                <t t-out="formatSpeed(sub.tx_bps)"/>
                                             </td>
                                         </tr>
                                     </tbody>
