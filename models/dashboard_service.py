@@ -16,21 +16,17 @@ class ISPDashboardService(models.AbstractModel):
         Router = self.env['isp.mikrotik.router']
         Log = self.env['isp.log']
 
-        # Subscribers metrics
+        # Subscribers metrics from Odoo res.partner
         subscribers = Partner.search([('is_isp_subscriber', '=', True)])
         total_subscribers = len(subscribers)
-        active_subscribers = len(subscribers.filtered(lambda s: s.service_status == 'active'))
-        isolated_subscribers = len(subscribers.filtered(lambda s: s.service_status == 'isolated'))
-
-        # Revenue MRR
         mrr = sum(subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
 
-        # Invoices metrics
+        # Invoices metrics - Integrated with Odoo account.move for ISP Subscribers
         unpaid_invoices = Move.search([
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
             ('payment_state', 'not in', ['paid', 'in_payment', 'reversed']),
-            ('is_isp_invoice', '=', True)
+            '|', ('is_isp_invoice', '=', True), ('partner_id.is_isp_subscriber', '=', True)
         ])
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
@@ -139,6 +135,18 @@ class ISPDashboardService(models.AbstractModel):
                     conn.disconnect()
             except Exception as e:
                 _logger.warning(f"Bypassing traffic stats for router {router.name}: {str(e)}")
+
+        # Calculate Active vs Isolated Subscribers combining Odoo partner status & MikroTik queue disabled status
+        isolated_partner_ids = set(subscribers.filtered(lambda s: s.service_status == 'isolated').ids)
+        for st in subscriber_traffics:
+            if st.get('is_disabled'):
+                # Find matching partner ID
+                match_p = subscribers.filtered(lambda s: s.simple_queue_name == st['queue_name'] or s.ip_address == st['ip_address'] or s.name == st['name'])
+                if match_p:
+                    isolated_partner_ids.add(match_p[0].id)
+        
+        isolated_subscribers = len(isolated_partner_ids)
+        active_subscribers = max(0, total_subscribers - isolated_subscribers)
 
         subscriber_traffics.sort(key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)
 
