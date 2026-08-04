@@ -236,11 +236,14 @@
                                                 <t t-out="sub.ip_address || '-'"/>
                                             </td>
                                             <td class="text-center">
-                                                <span t-if="!sub.is_disabled" class="badge bg-success">
+                                                <span t-if="sub.status == 'active'" class="badge bg-success">
                                                     <i class="fa fa-check me-1"></i> Aktif
                                                 </span>
-                                                <span t-else="" class="badge bg-danger">
+                                                <span t-elif="sub.status == 'isolated'" class="badge bg-danger">
                                                     <i class="fa fa-ban me-1"></i> Isolir
+                                                </span>
+                                                <span t-else="" class="badge bg-secondary">
+                                                    <i class="fa fa-power-off me-1"></i> Offline
                                                 </span>
                                             </td>
                                             <td class="text-end">
@@ -372,11 +375,12 @@
                                         <div class="d-flex flex-wrap gap-2">
                                             <t t-foreach="state.data.topology_nodes" t-as="node" t-key="node.id">
                                                 <div t-if="node.type == 'subscriber'" class="p-2 border rounded text-center bg-light" style="min-width: 140px;">
-                                                    <i class="fa fa-user me-1" t-attf-class="#{node.status == 'active' ? 'text-success' : 'text-danger'}"></i>
+                                                    <i class="fa fa-user me-1" t-attf-class="#{node.status == 'active' ? 'text-success' : node.status == 'isolated' ? 'text-danger' : 'text-secondary'}"></i>
                                                     <span class="fw-bold small text-dark" t-out="node.label"/>
                                                     <div class="text-muted font-monospace" style="font-size: 10px;" t-out="node.ip"/>
                                                     <span t-if="node.status == 'active'" class="badge bg-success" style="font-size: 8px;">AKTIF</span>
-                                                    <span t-else="" class="badge bg-danger" style="font-size: 8px;">ISOLIR</span>
+                                                    <span t-elif="node.status == 'isolated'" class="badge bg-danger" style="font-size: 8px;">ISOLIR</span>
+                                                    <span t-else="" class="badge bg-secondary" style="font-size: 8px;">OFFLINE</span>
                                                 </div>
                                             </t>
                                         </div>

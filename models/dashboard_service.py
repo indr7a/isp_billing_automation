@@ -4,6 +4,8 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+ADMIN_QUEUE_KEYWORDS = {'TOTAL', 'BANDWITH', 'BANDWIDTH', 'GMEET', 'ZOOM', 'LIMIT', 'PARENT', 'GLOBAL', 'ALL', 'LOKAL', 'LOCAL', 'GAME', 'BROADCAST', 'BYPASS'}
+
 class ISPDashboardService(models.AbstractModel):
     _name = 'isp.dashboard.service'
     _description = 'ISP Dashboard Data Service'
@@ -203,6 +205,11 @@ class ISPDashboardService(models.AbstractModel):
                             tx_bytes = int(bytes_parts[0]) if len(bytes_parts) > 0 and bytes_parts[0].isdigit() else 0
                             rx_bytes = int(bytes_parts[1]) if len(bytes_parts) > 1 and bytes_parts[1].isdigit() else 0
 
+                            # 1. Filter out Administrative & System Queues (e.g. TOTAL BANDWITH, LIMIT LOKAL, GMEET & ZOOM)
+                            q_name_upper = q_name.upper()
+                            if any(kw in q_name_upper for kw in ADMIN_QUEUE_KEYWORDS):
+                                continue
+
                             # Priority Matching Logic:
                             partner = non_terminated_subscribers.filtered(lambda s: s.simple_queue_name == q_name)
                             if not partner and clean_ip:
@@ -214,15 +221,23 @@ class ISPDashboardService(models.AbstractModel):
                             if partner and partner[0].service_status == 'terminated':
                                 continue
 
+                            is_registered = bool(partner)
+
+                            # 2. Filter out unregistered anonymous/disabled numeric queues with 0 traffic
+                            if not is_registered and is_disabled and rx_bps == 0 and tx_bps == 0:
+                                continue
+
                             # Detect Real-Time Network Connection Status:
-                            # 1. 'isolated' -> Queue or Secret is disabled by billing
-                            # 2. 'active' (online) -> Connected & transmitting traffic or active PPPoE session
-                            # 3. 'offline' -> Client device modem/router is powered off or FO cable cut
+                            # 'isolated' -> ONLY for registered Odoo subscribers that are isolated by billing
+                            # 'active' -> Online & transmitting traffic or active PPPoE session
+                            # 'offline' -> Client device modem/router is powered off, FO cable cut, or disabled queue
                             conntype = partner[0].connection_type if partner else 'static'
                             ppp_user = partner[0].ppp_username if partner else False
 
-                            if is_disabled or (partner and partner[0].service_status == 'isolated'):
+                            if partner and partner[0].service_status == 'isolated':
                                 real_status = 'isolated'
+                            elif is_disabled:
+                                real_status = 'offline'
                             else:
                                 if conntype == 'pppoe' and ppp_user:
                                     real_status = 'active' if ppp_user in pppoe_active_users else 'offline'
@@ -230,7 +245,6 @@ class ISPDashboardService(models.AbstractModel):
                                     real_status = 'active' if (rx_bps > 0 or tx_bps > 0 or rx_bytes > 0) else 'offline'
 
                             partner_name = partner[0].name if partner else q_name
-                            is_registered = bool(partner)
 
                             subscriber_traffics.append({
                                 'name': partner_name,
@@ -245,7 +259,7 @@ class ISPDashboardService(models.AbstractModel):
                                 'tx_bytes': tx_bytes,
                             })
 
-                            # Subscriber Topology Node (Only non-terminated subscribers)
+                            # Subscriber Topology Node (Only non-terminated subscribers & valid queues)
                             sub_node_id = f"sub_{q_name}_{clean_ip}"
                             topology_nodes.append({
                                 'id': sub_node_id,
