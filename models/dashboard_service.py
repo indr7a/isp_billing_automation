@@ -26,7 +26,7 @@ class ISPDashboardService(models.AbstractModel):
         total_routers = len(routers)
         connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
 
-        # 2. Filter Subscribers: Only include subscribers assigned to routers or explicitly belonging to the active company
+        # 2. Filter Subscribers: Only include non-terminated subscribers explicitly belonging to active company/routers
         if total_routers > 0:
             subscribers_domain = [
                 ('is_isp_subscriber', '=', True),
@@ -39,10 +39,10 @@ class ISPDashboardService(models.AbstractModel):
             ]
 
         subscribers = Partner.search(subscribers_domain)
-        active_subscribers_list = subscribers.filtered(lambda s: s.service_status != 'terminated')
+        non_terminated_subscribers = subscribers.filtered(lambda s: s.service_status != 'terminated')
 
-        total_subscribers = len(subscribers.filtered(lambda s: s.service_status != 'terminated'))
-        mrr = sum(subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
+        total_subscribers = len(non_terminated_subscribers)
+        mrr = sum(non_terminated_subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
 
         # 3. Invoices metrics - Integrated with subscription_package & Odoo account.move for ISP Subscribers
         unpaid_domain = [
@@ -87,6 +87,17 @@ class ISPDashboardService(models.AbstractModel):
             try:
                 conn, api_conn = router.get_connection()
                 if api_conn:
+                    # Fetch PPPoE Active Sessions from MikroTik for Real-Time Online/Offline Detection
+                    pppoe_active_users = set()
+                    try:
+                        ppp_active_res = api_conn.get_resource('/ppp/active')
+                        actives = ppp_active_res.get()
+                        for act in actives:
+                            if act.get('name'):
+                                pppoe_active_users.add(act.get('name'))
+                    except Exception as e_ppp_act:
+                        _logger.warning(f"Could not fetch PPP active sessions: {str(e_ppp_act)}")
+
                     # Interface Traffic & Discovered Neighbors
                     try:
                         if_resource = api_conn.get_resource('/interface')
@@ -172,7 +183,7 @@ class ISPDashboardService(models.AbstractModel):
                     except Exception as e_nb:
                         _logger.warning(f"Could not fetch neighbors: {str(e_nb)}")
 
-                    # Simple Queue Subscriber Traffic (With Strict Priority Matching for Recycled IPs)
+                    # Simple Queue & Subscriber Real-Time Connection Detection
                     try:
                         sq_resource = api_conn.get_resource('/queue/simple')
                         queues = sq_resource.get()
@@ -192,31 +203,40 @@ class ISPDashboardService(models.AbstractModel):
                             tx_bytes = int(bytes_parts[0]) if len(bytes_parts) > 0 and bytes_parts[0].isdigit() else 0
                             rx_bytes = int(bytes_parts[1]) if len(bytes_parts) > 1 and bytes_parts[1].isdigit() else 0
 
-                            # Priority Matching Logic for Recycled IPs:
-                            # 1. Match by Simple Queue Name on active/isolated subscribers
-                            partner = active_subscribers_list.filtered(lambda s: s.simple_queue_name == q_name)
-                            # 2. Fallback match by IP Address on active/isolated subscribers
+                            # Priority Matching Logic:
+                            partner = non_terminated_subscribers.filtered(lambda s: s.simple_queue_name == q_name)
                             if not partner and clean_ip:
-                                partner = active_subscribers_list.filtered(lambda s: s.ip_address == clean_ip)
-                            # 3. Fallback match by Name on active/isolated subscribers
+                                partner = non_terminated_subscribers.filtered(lambda s: s.ip_address == clean_ip)
                             if not partner:
-                                partner = active_subscribers_list.filtered(lambda s: s.name == q_name)
-                            # 4. Ultimate fallback to all subscribers including terminated
-                            if not partner:
-                                partner = subscribers.filtered(lambda s: s.simple_queue_name == q_name or (clean_ip and s.ip_address == clean_ip))
+                                partner = non_terminated_subscribers.filtered(lambda s: s.name == q_name)
 
-                            if not partner and rx_bps == 0 and tx_bps == 0:
+                            # Exclude Terminated subscribers completely from Topology
+                            if partner and partner[0].service_status == 'terminated':
                                 continue
 
+                            # Detect Real-Time Network Connection Status:
+                            # 1. 'isolated' -> Queue or Secret is disabled by billing
+                            # 2. 'active' (online) -> Connected & transmitting traffic or active PPPoE session
+                            # 3. 'offline' -> Client device modem/router is powered off or FO cable cut
+                            conntype = partner[0].connection_type if partner else 'static'
+                            ppp_user = partner[0].ppp_username if partner else False
+
+                            if is_disabled or (partner and partner[0].service_status == 'isolated'):
+                                real_status = 'isolated'
+                            else:
+                                if conntype == 'pppoe' and ppp_user:
+                                    real_status = 'active' if ppp_user in pppoe_active_users else 'offline'
+                                else: # Static IP / Simple Queue
+                                    real_status = 'active' if (rx_bps > 0 or tx_bps > 0 or rx_bytes > 0) else 'offline'
+
                             partner_name = partner[0].name if partner else q_name
-                            partner_status = partner[0].service_status if partner else ('isolated' if is_disabled else 'active')
                             is_registered = bool(partner)
 
                             subscriber_traffics.append({
                                 'name': partner_name,
                                 'queue_name': q_name,
                                 'ip_address': clean_ip,
-                                'status': partner_status,
+                                'status': real_status,
                                 'is_disabled': is_disabled,
                                 'is_registered': is_registered,
                                 'rx_bps': rx_bps,
@@ -225,14 +245,14 @@ class ISPDashboardService(models.AbstractModel):
                                 'tx_bytes': tx_bytes,
                             })
 
-                            # Subscriber Topology Node
+                            # Subscriber Topology Node (Only non-terminated subscribers)
                             sub_node_id = f"sub_{q_name}_{clean_ip}"
                             topology_nodes.append({
                                 'id': sub_node_id,
                                 'label': partner_name,
                                 'type': 'subscriber',
                                 'ip': clean_ip,
-                                'status': 'isolated' if is_disabled else 'active',
+                                'status': real_status,
                                 'rx_bps': rx_bps,
                                 'tx_bps': tx_bps,
                                 'icon': 'fa-user'
@@ -251,15 +271,8 @@ class ISPDashboardService(models.AbstractModel):
                 _logger.warning(f"Bypassing traffic stats for router {router.name}: {str(e)}")
 
         # Calculate Active vs Isolated Subscribers
-        isolated_partner_ids = set(subscribers.filtered(lambda s: s.service_status == 'isolated').ids)
-        for st in subscriber_traffics:
-            if st.get('is_disabled'):
-                match_p = subscribers.filtered(lambda s: s.simple_queue_name == st['queue_name'] or s.ip_address == st['ip_address'] or s.name == st['name'])
-                if match_p:
-                    isolated_partner_ids.add(match_p[0].id)
-        
-        isolated_subscribers = len(isolated_partner_ids)
-        active_subscribers = max(0, total_subscribers - isolated_subscribers)
+        isolated_subscribers = len(non_terminated_subscribers.filtered(lambda s: s.service_status == 'isolated'))
+        active_subscribers = len(non_terminated_subscribers.filtered(lambda s: s.service_status == 'active'))
 
         subscriber_traffics.sort(key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)
 
