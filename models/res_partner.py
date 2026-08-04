@@ -90,31 +90,46 @@ class ResPartner(models.Model):
             return False
 
     def action_manual_enable_service(self):
-        """Manual Un-isolir / Activate Button"""
-        for partner in self:
-            if partner.mikrotik_id:
-                partner.mikrotik_id.set_subscriber_status(partner, True)
-            partner.service_status = 'active'
-            ident = partner.ip_address or partner.ppp_username or partner.name
-            wa_msg = f"Yth. {partner.name}, layanan internet Anda ({ident}) telah DIAKTIFKAN KEMBALI secara manual oleh Admin."
-            partner.send_wa_notification(wa_msg)
+        """Manual Un-isolir / Activate Button via Confirmation Wizard"""
+        self.ensure_one()
+        return {
+            'name': 'Konfirmasi Buka Isolir Layanan',
+            'type': 'ir.actions.act_window',
+            'res_model': 'isp.subscriber.action.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_id': self.id,
+                'default_action_type': 'enable',
+            }
+        }
 
     def action_manual_disable_service(self):
-        """Manual Isolir Button"""
-        for partner in self:
-            if partner.mikrotik_id:
-                partner.mikrotik_id.set_subscriber_status(partner, False)
-            partner.service_status = 'isolated'
-            ident = partner.ip_address or partner.ppp_username or partner.name
-            wa_msg = f"PERHATIAN: Layanan internet Anda ({ident}) telah DI-ISOLIR oleh Admin."
-            partner.send_wa_notification(wa_msg)
+        """Manual Isolir Button via Confirmation Wizard"""
+        self.ensure_one()
+        return {
+            'name': 'Konfirmasi Isolir Layanan',
+            'type': 'ir.actions.act_window',
+            'res_model': 'isp.subscriber.action.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_id': self.id,
+                'default_action_type': 'disable',
+            }
+        }
 
     def action_manual_terminate_service(self):
-        """Manual Terminate Service Button"""
-        for partner in self:
-            if partner.mikrotik_id:
-                partner.mikrotik_id.set_subscriber_status(partner, False)
-            partner.service_status = 'terminated'
-            ident = partner.ip_address or partner.ppp_username or partner.name
-            wa_msg = f"PERHATIAN: Berlangganan layanan internet Anda ({ident}) telah DIPUTUS (Terminated) secara resmi oleh Admin."
-            partner.send_wa_notification(wa_msg)
+        """Manual Terminate Service Button via Confirmation Wizard"""
+        self.ensure_one()
+        return {
+            'name': 'Konfirmasi Pemutusan Layanan (Terminate)',
+            'type': 'ir.actions.act_window',
+            'res_model': 'isp.subscriber.action.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_id': self.id,
+                'default_action_type': 'terminate',
+            }
+        }

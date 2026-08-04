@@ -8,11 +8,12 @@
         ISP Billing & MikroTik Automation Module for Odoo 17
         ====================================================
         * MikroTik Router Connection & Management via RouterOS API.
-        * Automatic PPP User Enable/Disable (Isolir) based on invoice payment status.
+        * Automatic PPP User & Static IP Enable/Disable (Isolir) based on invoice payment status.
         * WhatsApp Notifications for Payment Reminders (H-3), Overdue Notices, and Isolation/Reactivation alerts.
+        * Confirmation Wizard Popup before sending WhatsApp on manual admin actions.
         * Automated Daily Cron Jobs for Billing Checks & Service Status Updating.
         * System Log & Audit Trail for Router & WhatsApp events.
-        * Interactive OWL Dashboard Client Action.
+        * Interactive OWL Dashboard with Real-time Interface Traffic Charts.
     """,
     'author': 'Your ISP Engineering Team',
     'website': 'https://your-isp-domain.com',
@@ -21,6 +22,7 @@
         'security/security.xml',
         'security/ir.model.access.csv',
         'data/cron_jobs.xml',
+        'wizards/subscriber_action_wizard_views.xml',
         'views/dashboard_views.xml',
         'views/mikrotik_router_views.xml',
         'views/res_partner_views.xml',

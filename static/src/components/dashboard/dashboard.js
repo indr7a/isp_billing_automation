@@ -84,7 +84,7 @@ export class ISPBillingDashboard extends Component {
                     this.interfaceHistory[key].push({
                         rx: iface.rx_bps || 0,
                         tx: iface.tx_bps || 0,
-                        time: new Date().toLocaleTimeString()
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
                     });
                     if (this.interfaceHistory[key].length > 15) {
                         this.interfaceHistory[key].shift();
@@ -106,22 +106,42 @@ export class ISPBillingDashboard extends Component {
         return !!this.state.chartToggles[ifaceKey];
     }
 
-    getSparklinePoints(ifaceKey, type = 'rx') {
+    getChartMeta(ifaceKey) {
         const history = this.interfaceHistory[ifaceKey] || [];
-        if (history.length < 2) return "0,35 150,35";
+        if (history.length === 0) {
+            return {
+                peakFormatted: "0 bps",
+                startTime: "-",
+                endTime: "-",
+                rxPoints: "0,35 220,35",
+                txPoints: "0,35 220,35"
+            };
+        }
+
+        const rxVals = history.map(h => h.rx);
+        const txVals = history.map(h => h.tx);
+        const allVals = [...rxVals, ...txVals];
+        const maxVal = Math.max(...allVals, 1000);
         
-        const values = history.map(h => type === 'rx' ? h.rx : h.tx);
-        const maxVal = Math.max(...values, 1000);
-        const width = 200;
-        const height = 40;
-        
-        const points = values.map((val, idx) => {
-            const x = (idx / (history.length - 1)) * width;
-            const y = height - ((val / maxVal) * (height - 5));
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-        });
-        
-        return points.join(" ");
+        const width = 220;
+        const height = 45;
+
+        const getPoints = (vals) => {
+            if (vals.length === 1) return `0,${height / 2} ${width},${height / 2}`;
+            return vals.map((val, idx) => {
+                const x = (idx / (vals.length - 1)) * width;
+                const y = (height - 5) - ((val / maxVal) * (height - 10));
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(" ");
+        };
+
+        return {
+            peakFormatted: this.formatSpeed(maxVal),
+            startTime: history[0].time,
+            endTime: history[history.length - 1].time,
+            rxPoints: getPoints(rxVals),
+            txPoints: getPoints(txVals)
+        };
     }
 
     formatIDR(val) {

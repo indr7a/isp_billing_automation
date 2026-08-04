@@ -102,7 +102,7 @@
                     </div>
                 </div>
 
-                <!-- Interface Traffic Cards with History Chart Toggle -->
+                <!-- Interface Traffic Cards with Detailed History Chart Toggle -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
@@ -118,6 +118,7 @@
                             <div t-else="" class="row g-2">
                                 <div t-foreach="state.data.traffic_interfaces" t-as="iface" t-key="iface.router_name + '_' + iface.name" class="col-12 col-sm-6 col-md-4 col-xl-3">
                                     <t t-set="ifaceKey" t-value="iface.router_name + '_' + iface.name"/>
+                                    <t t-set="chartMeta" t-value="getChartMeta(ifaceKey)"/>
                                     <div class="p-2 border rounded bg-light">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <div class="fw-bold small text-dark" t-out="iface.name"/>
@@ -144,18 +145,43 @@
                                             Total: <t t-out="formatBytes(iface.rx_bytes + iface.tx_bytes)"/>
                                         </div>
 
-                                        <!-- Inline Sparkline History Chart (Toggled) -->
-                                        <div t-if="isChartEnabled(ifaceKey)" class="mt-2 pt-2 border-top">
-                                            <div class="d-flex justify-content-between text-muted" style="font-size: 9px;">
-                                                <span class="text-success">■ RX (Download)</span>
-                                                <span class="text-primary">■ TX (Upload)</span>
+                                        <!-- Detailed Chart Panel (Y-axis Peak & 0bps, X-axis Time, Grid Lines) -->
+                                        <div t-if="isChartEnabled(ifaceKey)" class="mt-2 pt-2 border-top bg-white p-2 rounded border">
+                                            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 9px;">
+                                                <div>
+                                                    <span class="text-success fw-bold me-2">━ RX</span>
+                                                    <span class="text-primary fw-bold">┅ TX</span>
+                                                </div>
+                                                <div class="badge bg-light text-dark border font-monospace" style="font-size: 9px;">
+                                                    Peak: <t t-out="chartMeta.peakFormatted"/>
+                                                </div>
                                             </div>
-                                            <svg width="100%" height="40" viewBox="0 0 200 40" class="mt-1" style="background: #ffffff; border-radius: 4px;">
-                                                <!-- RX Line (Green) -->
-                                                <polyline fill="none" stroke="#198754" stroke-width="2" t-att-points="getSparklinePoints(ifaceKey, 'rx')"/>
-                                                <!-- TX Line (Blue) -->
-                                                <polyline fill="none" stroke="#0d6efd" stroke-width="2" stroke-dasharray="3,3" t-att-points="getSparklinePoints(ifaceKey, 'tx')"/>
-                                            </svg>
+
+                                            <div class="position-relative" style="height: 50px;">
+                                                <svg width="100%" height="45" viewBox="0 0 220 45" style="background: #fafafa; border: 1px solid #e9ecef; border-radius: 4px;">
+                                                    <!-- Grid Lines -->
+                                                    <line x1="0" y1="5" x2="220" y2="5" stroke="#dee2e6" stroke-dasharray="2,2"/>
+                                                    <line x1="0" y1="22" x2="220" y2="22" stroke="#e9ecef" stroke-dasharray="2,2"/>
+                                                    <line x1="0" y1="40" x2="220" y2="40" stroke="#ced4da" stroke-width="1"/>
+                                                    
+                                                    <!-- Vertical Grid Lines -->
+                                                    <line x1="55" y1="0" x2="55" y2="45" stroke="#f1f3f5" stroke-dasharray="2,2"/>
+                                                    <line x1="110" y1="0" x2="110" y2="45" stroke="#f1f3f5" stroke-dasharray="2,2"/>
+                                                    <line x1="165" y1="0" x2="165" y2="45" stroke="#f1f3f5" stroke-dasharray="2,2"/>
+
+                                                    <!-- RX Polyline (Green) -->
+                                                    <polyline fill="none" stroke="#198754" stroke-width="2" t-att-points="chartMeta.rxPoints"/>
+                                                    <!-- TX Polyline (Blue) -->
+                                                    <polyline fill="none" stroke="#0d6efd" stroke-width="2" stroke-dasharray="3,3" t-att-points="chartMeta.txPoints"/>
+                                                </svg>
+                                            </div>
+
+                                            <!-- X-Axis Time & Y-Axis 0bps Legend -->
+                                            <div class="d-flex justify-content-between text-muted font-monospace mt-1" style="font-size: 8px;">
+                                                <span><i class="fa fa-clock-o me-1"></i><t t-out="chartMeta.startTime"/></span>
+                                                <span>0 bps</span>
+                                                <span><t t-out="chartMeta.endTime"/></span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
