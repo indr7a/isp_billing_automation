@@ -6,6 +6,36 @@
     overflow-x: hidden;
     padding-bottom: 6rem !important;
 
+    .isp-header-banner {
+        background-color: #1e293b !important;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+
+        .card-body {
+            background-color: transparent !important;
+        }
+
+        h2, h3, h4, p, span, div {
+            color: #ffffff !important;
+        }
+
+        p {
+            opacity: 0.85 !important;
+        }
+
+        .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.4) !important;
+            color: #ffffff !important;
+            background-color: transparent !important;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.15) !important;
+                border-color: #ffffff !important;
+            }
+        }
+    }
+
     .cursor-pointer {
         cursor: pointer;
         transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
