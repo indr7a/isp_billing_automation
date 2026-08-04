@@ -10,7 +10,7 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (Multi-Company Filtered)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (Multi-Company Filtered per Router & Subscriber Company)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
@@ -18,15 +18,31 @@ class ISPDashboardService(models.AbstractModel):
 
         active_company_ids = self.env.companies.ids
 
-        # Subscribers metrics from Odoo res.partner filtered by active companies
-        subscribers = Partner.search([
-            ('is_isp_subscriber', '=', True),
+        # 1. Fetch Routers active in current company selection
+        routers = Router.search([
+            ('active', '=', True),
             '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
         ])
+        total_routers = len(routers)
+        connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
+
+        # 2. Filter Subscribers: Only include subscribers assigned to routers or explicitly belonging to the active company
+        if total_routers > 0:
+            subscribers_domain = [
+                ('is_isp_subscriber', '=', True),
+                '|', ('mikrotik_id', 'in', routers.ids), ('company_id', 'in', active_company_ids)
+            ]
+        else:
+            subscribers_domain = [
+                ('is_isp_subscriber', '=', True),
+                ('company_id', 'in', active_company_ids)
+            ]
+
+        subscribers = Partner.search(subscribers_domain)
         total_subscribers = len(subscribers)
         mrr = sum(subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
 
-        # Invoices metrics - Integrated with subscription_package & Odoo account.move for ISP Subscribers
+        # 3. Invoices metrics - Integrated with subscription_package & Odoo account.move for ISP Subscribers
         unpaid_domain = [
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
@@ -44,16 +60,14 @@ class ISPDashboardService(models.AbstractModel):
             unpaid_domain.extend(['|', ('is_isp_invoice', '=', True), ('partner_id.is_isp_subscriber', '=', True)])
 
         unpaid_invoices = Move.search(unpaid_domain)
+        # Filter unpaid invoices to only include partners in current company's subscriber scope
+        if subscribers:
+            unpaid_invoices = unpaid_invoices.filtered(lambda inv: inv.partner_id in subscribers or inv.is_isp_invoice)
+        else:
+            unpaid_invoices = unpaid_invoices.filtered(lambda inv: inv.is_isp_invoice)
+
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
-
-        # Routers metrics filtered by active companies
-        routers = Router.search([
-            ('active', '=', True),
-            '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
-        ])
-        total_routers = len(routers)
-        connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
 
         # 1. Interface Traffic Stats (Compact)
         traffic_interfaces = []

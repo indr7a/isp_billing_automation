@@ -20,7 +20,7 @@ class ResPartner(models.Model):
     ppp_username = fields.Char(string="PPP Username", index=True, help="Username PPPoE jika menggunakan mode PPPoE")
     ppp_password = fields.Char(string="PPP Password", help="Password untuk akun PPPoE pelanggan di MikroTik")
 
-    mikrotik_id = fields.Many2one('isp.mikrotik.router', string="Assigned MikroTik Router")
+    mikrotik_id = fields.Many2one('isp.mikrotik.router', string="Assigned MikroTik Router", domain="['|', ('company_id', '=', False), ('company_id', '=', company_id)]")
     service_status = fields.Selection([
         ('active', 'Active'),
         ('isolated', 'Isolated (Isolir)'),
@@ -30,6 +30,12 @@ class ResPartner(models.Model):
     isp_package_id = fields.Many2one('product.product', string="Internet Package", domain="[('type', '=', 'service')]")
     monthly_fee = fields.Float(string="Monthly Subscription Fee", help="Tarif iuran bulanan riil untuk pelanggan ini (Otomatis terisi dari Sales Price produk, namun bisa disesuaikan manual)")
     wa_phone = fields.Char(string="WhatsApp Phone", help="Nomor WhatsApp kontak pelanggan (misal: 628123456789)")
+
+    @api.onchange('is_isp_subscriber')
+    def _onchange_is_isp_subscriber(self):
+        """Auto-bind partner company_id when ISP Subscriber is enabled"""
+        if self.is_isp_subscriber and not self.company_id:
+            self.company_id = self.env.company
 
     @api.onchange('isp_package_id')
     def _onchange_isp_package_id(self):
@@ -84,6 +90,7 @@ class ResPartner(models.Model):
                     self.env['isp.log'].create({
                         'source': 'whatsapp',
                         'level': 'info',
+                        'company_id': self.company_id.id if self.company_id else self.env.company.id,
                         'message': f"WhatsApp Terkirim (fs_whatsapp_connector) ke {self.name} ({phone})",
                         'details': f"Pesan: {message}\nAccount: {wa_account.name} (Device: {wa_account.device_id})\nResponse: {res}"
                     })
@@ -101,6 +108,7 @@ class ResPartner(models.Model):
             self.env['isp.log'].create({
                 'source': 'whatsapp',
                 'level': 'warning',
+                'company_id': self.company_id.id if self.company_id else self.env.company.id,
                 'message': f"WA Not Send (No Token/Account) to {self.name} ({phone})",
                 'details': f"Content: {message}"
             })
@@ -119,6 +127,7 @@ class ResPartner(models.Model):
             self.env['isp.log'].create({
                 'source': 'whatsapp',
                 'level': 'info',
+                'company_id': self.company_id.id if self.company_id else self.env.company.id,
                 'message': f"WhatsApp Notifikasi Terkirim ke {self.name} ({phone})",
                 'details': f"Pesan: {message}\nResponse API: {response.text}"
             })
@@ -128,6 +137,7 @@ class ResPartner(models.Model):
             self.env['isp.log'].create({
                 'source': 'whatsapp',
                 'level': 'error',
+                'company_id': self.company_id.id if self.company_id else self.env.company.id,
                 'message': f"Gagal Kirim WhatsApp ke {self.name} ({phone})",
                 'details': str(e)
             })
