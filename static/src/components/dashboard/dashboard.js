@@ -18,7 +18,7 @@ export class ISPBillingDashboard extends Component {
             loading: true,
             cronRunning: false,
             activeTab: 'dashboard', // 'dashboard' or 'topology'
-            summaryTab: 'usage', // 'usage', 'upload', 'speed'
+            summaryTab: 'download', // 'download', 'upload', 'active'
             chartToggles: {}, // Map of interface key -> boolean (true to show chart)
             collapsedGroups: {
                 offline: true,   // Offline group collapsed by default!
@@ -37,9 +37,9 @@ export class ISPBillingDashboard extends Component {
                 connected_routers: 0,
                 traffic_interfaces: [],
                 subscriber_traffics: [],
-                top_data_usage: [],
+                top_download: [],
                 top_upload: [],
-                top_active_speed: [],
+                top_active: [],
                 recent_logs: [],
                 topology_nodes: [],
                 topology_links: [],
@@ -86,9 +86,9 @@ export class ISPBillingDashboard extends Component {
                     connected_routers: res.connected_routers || 0,
                     traffic_interfaces: res.traffic_interfaces || [],
                     subscriber_traffics: res.subscriber_traffics || [],
-                    top_data_usage: res.top_data_usage || [],
+                    top_download: res.top_download || [],
                     top_upload: res.top_upload || [],
-                    top_active_speed: res.top_active_speed || [],
+                    top_active: res.top_active || [],
                     recent_logs: res.recent_logs || [],
                     topology_nodes: res.topology_nodes || [],
                     topology_links: res.topology_links || [],

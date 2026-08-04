@@ -197,33 +197,33 @@
                     </div>
                 </div>
 
-                <!-- TOP 10 ANALYTICS LEADERBOARDS SECTION -->
+                <!-- TOP 10 ANALYTICS LEADERBOARDS SECTION (CUMULATIVE MONTHLY TRAFFIC) -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h5 class="fw-bold text-dark mb-0">
-                                <i class="fa fa-trophy text-warning me-2"></i>Top 10 Summary &amp; Analytics Pelanggan / IP
+                                <i class="fa fa-trophy text-warning me-2"></i>Top 10 Summary Analytics (Akumulasi Periode s/d Sekarang)
                             </h5>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button t-on-click="() => this.setSummaryTab('usage')" 
-                                        t-attf-class="btn #{state.summaryTab == 'usage' ? 'btn-primary' : 'btn-outline-secondary'}">
-                                    <i class="fa fa-database me-1"></i>Paling Besar Penggunaan (Total GB)
+                                <button t-on-click="() => this.setSummaryTab('download')" 
+                                        t-attf-class="btn #{state.summaryTab == 'download' ? 'btn-primary' : 'btn-outline-secondary'}">
+                                    <i class="fa fa-download me-1"></i>Top Download
                                 </button>
                                 <button t-on-click="() => this.setSummaryTab('upload')" 
                                         t-attf-class="btn #{state.summaryTab == 'upload' ? 'btn-primary' : 'btn-outline-secondary'}">
-                                    <i class="fa fa-upload me-1"></i>Paling Besar Upload (TX)
+                                    <i class="fa fa-upload me-1"></i>Top Upload
                                 </button>
-                                <button t-on-click="() => this.setSummaryTab('speed')" 
-                                        t-attf-class="btn #{state.summaryTab == 'speed' ? 'btn-primary' : 'btn-outline-secondary'}">
-                                    <i class="fa fa-bolt me-1"></i>Paling Sering / Tinggi Bandwidth
+                                <button t-on-click="() => this.setSummaryTab('active')" 
+                                        t-attf-class="btn #{state.summaryTab == 'active' ? 'btn-primary' : 'btn-outline-secondary'}">
+                                    <i class="fa fa-bolt me-1"></i>Paling Aktif
                                 </button>
                             </div>
                         </div>
                         <div class="card-body">
-                            <t t-set="activeSummaryList" t-value="state.summaryTab == 'usage' ? state.data.top_data_usage : state.summaryTab == 'upload' ? state.data.top_upload : state.data.top_active_speed"/>
+                            <t t-set="activeSummaryList" t-value="state.summaryTab == 'download' ? state.data.top_download : state.summaryTab == 'upload' ? state.data.top_upload : state.data.top_active"/>
                             
                             <div t-if="!activeSummaryList || !activeSummaryList.length" class="text-center py-3 text-muted small">
-                                Belum ada data statistik pelanggan.
+                                Belum ada data akumulasi statistik pelanggan.
                             </div>
                             <div t-else="" class="table-responsive">
                                 <table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
@@ -233,8 +233,9 @@
                                             <th>Pelanggan &amp; Queue</th>
                                             <th>IP Address</th>
                                             <th class="text-center">Status</th>
-                                            <th class="text-end">Total Volume (Download + Upload)</th>
-                                            <th class="text-end">Live Speed RX / TX</th>
+                                            <th class="text-end">Akumulasi Download (RX Bytes)</th>
+                                            <th class="text-end">Akumulasi Upload (TX Bytes)</th>
+                                            <th class="text-end">Total Akumulasi Volume</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -250,15 +251,14 @@
                                                 <span t-elif="item.status == 'isolated'" class="badge bg-danger" style="font-size: 9px;">ISOLIR</span>
                                                 <span t-else="" class="badge bg-secondary" style="font-size: 9px;">OFFLINE</span>
                                             </td>
+                                            <td class="text-end font-monospace text-success fw-bold">
+                                                <t t-out="formatBytes(item.rx_bytes)"/>
+                                            </td>
+                                            <td class="text-end font-monospace text-primary fw-bold">
+                                                <t t-out="formatBytes(item.tx_bytes)"/>
+                                            </td>
                                             <td class="text-end font-monospace fw-bold text-dark">
                                                 <t t-out="formatBytes(item.rx_bytes + item.tx_bytes)"/>
-                                                <div class="text-muted font-monospace" style="font-size: 9px;">
-                                                    Up: <t t-out="formatBytes(item.tx_bytes)"/> | Down: <t t-out="formatBytes(item.rx_bytes)"/>
-                                                </div>
-                                            </td>
-                                            <td class="text-end font-monospace">
-                                                <span class="text-success me-2">↓ <t t-out="formatSpeed(item.rx_bps)"/></span>
-                                                <span class="text-primary">↑ <t t-out="formatSpeed(item.tx_bps)"/></span>
                                             </td>
                                         </tr>
                                     </tbody>

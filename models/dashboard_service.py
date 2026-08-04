@@ -288,15 +288,15 @@ class ISPDashboardService(models.AbstractModel):
 
         subscriber_traffics.sort(key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)
 
-        # Generate Top 10 Leaderboards / Summaries
-        # 1. Top 10 Data Usage (Total Volume Download + Upload)
-        top_data_usage = sorted(subscriber_traffics, key=lambda x: x['rx_bytes'] + x['tx_bytes'], reverse=True)[:10]
+        # Generate Top 10 Cumulative Leaderboards (Akumulasi dari awal bulan/reset s/d sekarang):
+        # 1. Top Download: Akumulasi Download Bytes (rx_bytes) terbesar
+        top_download = sorted(subscriber_traffics, key=lambda x: x['rx_bytes'], reverse=True)[:10]
 
-        # 2. Top 10 Upload (TX Volume / Rate)
-        top_upload = sorted(subscriber_traffics, key=lambda x: x['tx_bytes'] + x['tx_bps'], reverse=True)[:10]
+        # 2. Top Upload: Akumulasi Upload Bytes (tx_bytes) terbesar
+        top_upload = sorted(subscriber_traffics, key=lambda x: x['tx_bytes'], reverse=True)[:10]
 
-        # 3. Top 10 Active Speed (Highest Live Bandwidth)
-        top_active_speed = sorted(subscriber_traffics, key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)[:10]
+        # 3. Paling Aktif: Akumulasi Total Trafik Volume Bytes (rx_bytes + tx_bytes) terbesar
+        top_active = sorted(subscriber_traffics, key=lambda x: x['rx_bytes'] + x['tx_bytes'], reverse=True)[:10]
 
         recent_logs_records = Log.search([
             '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
@@ -321,9 +321,9 @@ class ISPDashboardService(models.AbstractModel):
             'connected_routers': connected_routers,
             'traffic_interfaces': traffic_interfaces,
             'subscriber_traffics': subscriber_traffics,
-            'top_data_usage': top_data_usage,
+            'top_download': top_download,
             'top_upload': top_upload,
-            'top_active_speed': top_active_speed,
+            'top_active': top_active,
             'recent_logs': recent_logs,
             'topology_nodes': topology_nodes,
             'topology_links': topology_links,
