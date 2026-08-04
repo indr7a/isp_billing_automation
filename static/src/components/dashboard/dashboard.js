@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, onWillStart, onWillUnmount, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -24,18 +24,32 @@ export class ISPBillingDashboard extends Component {
                 unpaid_count: 0,
                 total_routers: 0,
                 connected_routers: 0,
-                aging_ar: {},
+                traffic_interfaces: [],
                 recent_logs: [],
             }
         });
 
+        this.refreshInterval = null;
+
         onWillStart(async () => {
             await this.loadDashboardData();
+            // Auto refresh traffic & dashboard metrics every 15 seconds
+            this.refreshInterval = setInterval(() => {
+                this.loadDashboardData(true);
+            }, 15000);
+        });
+
+        onWillUnmount(() => {
+            if (this.refreshInterval) {
+                clearInterval(this.refreshInterval);
+            }
         });
     }
 
-    async loadDashboardData() {
-        this.state.loading = true;
+    async loadDashboardData(silent = false) {
+        if (!silent) {
+            this.state.loading = true;
+        }
         try {
             const res = await this.orm.call(
                 "isp.dashboard.service",
@@ -58,6 +72,24 @@ export class ISPBillingDashboard extends Component {
         }).format(val || 0);
     }
 
+    formatSpeed(bps) {
+        if (!bps || bps <= 0) return "0 bps";
+        if (bps >= 1000000) {
+            return (bps / 1000000).toFixed(2) + " Mbps";
+        } else if (bps >= 1000) {
+            return (bps / 1000).toFixed(1) + " Kbps";
+        }
+        return bps + " bps";
+    }
+
+    formatBytes(bytes) {
+        if (!bytes || bytes <= 0) return "0 B";
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     async onTriggerCron() {
         this.state.cronRunning = true;
         try {
@@ -70,7 +102,7 @@ export class ISPBillingDashboard extends Component {
                 "Proses Cron Penagihan H-3 & Isolir H+15 berhasil dijalankan!",
                 { title: "Sukses", type: "success" }
             );
-            await this.loadDashboardData();
+            await this.loadDashboardData(true);
         } catch (error) {
             this.notification.add(
                 "Gagal menjalankan Cron Job: " + error.message,
