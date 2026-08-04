@@ -10,7 +10,7 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Live Interface RX/TX Rates)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Live Traffic & Total Bytes per Subscriber)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
@@ -40,20 +40,20 @@ class ISPDashboardService(models.AbstractModel):
         total_routers = len(routers)
         connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
 
-        # 1. Interface Traffic Stats (with live RX/TX bps rates)
+        # 1. Interface Traffic Stats (Compact)
         traffic_interfaces = []
-        # 2. Active Subscriber Traffic Stats (Simple Queues & PPPoE)
+        # 2. Active Subscriber Traffic & Total Bytes Stats
         subscriber_traffics = []
 
         for router in routers.filtered(lambda r: r.status == 'connected'):
             try:
                 conn, api_conn = router.get_connection()
                 if api_conn:
-                    # Interface Traffic with monitor-traffic rates
+                    # Interface Traffic
                     try:
                         if_resource = api_conn.get_resource('/interface')
                         interfaces = if_resource.get()
-                        for item in interfaces[:6]: # Top 6 interfaces
+                        for item in interfaces[:6]:
                             if_name = item.get('name', '')
                             is_running = item.get('running') == 'true' or item.get('running') == True
                             
@@ -86,7 +86,7 @@ class ISPDashboardService(models.AbstractModel):
                     except Exception as e_if:
                         _logger.warning(f"Could not fetch interfaces: {str(e_if)}")
 
-                    # Simple Queue Subscriber Traffic
+                    # Simple Queue Subscriber Traffic & Total Bytes
                     try:
                         sq_resource = api_conn.get_resource('/queue/simple')
                         queues = sq_resource.get()
@@ -96,10 +96,17 @@ class ISPDashboardService(models.AbstractModel):
                             clean_ip = q_target.split('/')[0] if q_target else ''
                             is_disabled = q.get('disabled') == 'true' or q.get('disabled') == True
                             
+                            # Parse rate: "upload_bps/download_bps"
                             rate_str = q.get('rate', '0/0')
                             rate_parts = rate_str.split('/') if '/' in rate_str else ['0', '0']
                             tx_bps = int(rate_parts[0]) if len(rate_parts) > 0 and rate_parts[0].isdigit() else 0
                             rx_bps = int(rate_parts[1]) if len(rate_parts) > 1 and rate_parts[1].isdigit() else 0
+
+                            # Parse total bytes: "upload_bytes/download_bytes"
+                            bytes_str = q.get('bytes', '0/0')
+                            bytes_parts = bytes_str.split('/') if '/' in bytes_str else ['0', '0']
+                            tx_bytes = int(bytes_parts[0]) if len(bytes_parts) > 0 and bytes_parts[0].isdigit() else 0
+                            rx_bytes = int(bytes_parts[1]) if len(bytes_parts) > 1 and bytes_parts[1].isdigit() else 0
 
                             partner = subscribers.filtered(
                                 lambda s: s.simple_queue_name == q_name or s.ip_address == clean_ip or s.name == q_name
@@ -113,8 +120,10 @@ class ISPDashboardService(models.AbstractModel):
                                 'ip_address': clean_ip,
                                 'status': partner_status,
                                 'is_disabled': is_disabled,
-                                'rx_bps': rx_bps, # Download
-                                'tx_bps': tx_bps, # Upload
+                                'rx_bps': rx_bps,     # Live Download Rate
+                                'tx_bps': tx_bps,     # Live Upload Rate
+                                'rx_bytes': rx_bytes, # Total Download Bytes
+                                'tx_bytes': tx_bytes, # Total Upload Bytes
                             })
                     except Exception as e_sq:
                         _logger.warning(f"Could not fetch simple queue traffic: {str(e_sq)}")

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="isp_billing_automation.Dashboard">
-        <div class="o_isp_dashboard container-fluid p-4">
+        <div class="o_isp_dashboard container-fluid p-4 pb-5">
             <!-- Header Banner -->
             <div class="card bg-dark text-white border-0 shadow-sm mb-4 rounded-3 overflow-hidden">
                 <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
@@ -36,7 +36,7 @@
             </div>
 
             <!-- Dashboard Content -->
-            <div t-else="" class="row g-4">
+            <div t-else="" class="row g-4 pb-5">
                 <!-- KPI Cards -->
                 <div class="col-12 col-sm-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-3 h-100 cursor-pointer" t-on-click="openSubscribers">
@@ -102,7 +102,7 @@
                     </div>
                 </div>
 
-                <!-- Compact Interface Traffic Row (With Download RX & Upload TX Rate) -->
+                <!-- Compact Interface Traffic Row -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
@@ -141,12 +141,12 @@
                     </div>
                 </div>
 
-                <!-- Active Subscriber Traffic Section -->
+                <!-- Active Subscriber Traffic Section (With Live Rate & Total RX/TX Bytes) -->
                 <div class="col-12 col-lg-8">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h5 class="fw-bold text-dark mb-0">
-                                <i class="fa fa-tachometer text-primary me-2"></i>Traffic Pelanggan Aktif (Real-Time Live Rate)
+                                <i class="fa fa-tachometer text-primary me-2"></i>Traffic Pelanggan Aktif (Live Speed &amp; Total Volume)
                             </h5>
                             <span class="badge bg-primary text-white font-monospace">
                                 <t t-out="(state.data.subscriber_traffics &amp;&amp; state.data.subscriber_traffics.length) || 0"/> Pelanggan Live
@@ -164,8 +164,8 @@
                                             <th>Pelanggan &amp; Queue</th>
                                             <th>IP Address</th>
                                             <th class="text-center">Status</th>
-                                            <th class="text-end">Download (RX Rate)</th>
-                                            <th class="text-end">Upload (TX Rate)</th>
+                                            <th class="text-end">Download (Rate / Total)</th>
+                                            <th class="text-end">Upload (Rate / Total)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -187,13 +187,23 @@
                                                     <i class="fa fa-ban me-1"></i> Isolir
                                                 </span>
                                             </td>
-                                            <td class="text-end fw-bold text-success">
-                                                <i class="fa fa-download me-1 opacity-50"></i>
-                                                <t t-out="formatSpeed(sub.rx_bps)"/>
+                                            <td class="text-end">
+                                                <div class="fw-bold text-success">
+                                                    <i class="fa fa-download me-1 opacity-50"></i>
+                                                    <t t-out="formatSpeed(sub.rx_bps)"/>
+                                                </div>
+                                                <div class="text-muted font-monospace" style="font-size: 10px;">
+                                                    Total: <t t-out="formatBytes(sub.rx_bytes)"/>
+                                                </div>
                                             </td>
-                                            <td class="text-end fw-bold text-primary">
-                                                <i class="fa fa-upload me-1 opacity-50"></i>
-                                                <t t-out="formatSpeed(sub.tx_bps)"/>
+                                            <td class="text-end">
+                                                <div class="fw-bold text-primary">
+                                                    <i class="fa fa-upload me-1 opacity-50"></i>
+                                                    <t t-out="formatSpeed(sub.tx_bps)"/>
+                                                </div>
+                                                <div class="text-muted font-monospace" style="font-size: 10px;">
+                                                    Total: <t t-out="formatBytes(sub.tx_bytes)"/>
+                                                </div>
                                             </td>
                                         </tr>
                                     </tbody>
