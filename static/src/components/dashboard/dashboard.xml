@@ -2,21 +2,18 @@
 <templates xml:space="preserve">
     <t t-name="isp_billing_automation.Dashboard">
         <div class="o_isp_dashboard container-fluid p-4 pb-5">
-            <!-- Header Banner -->
-            <div class="card bg-dark text-white border-0 shadow-sm mb-4 rounded-3 overflow-hidden">
+            <!-- Header Banner Dark Grey Charcoal -->
+            <div class="card border-0 shadow-sm mb-4 rounded-3 overflow-hidden" style="background: #212529; color: #ffffff;">
                 <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                     <div>
-                        <div class="badge bg-info text-dark mb-2 font-monospace">
-                            <i class="fa fa-circle text-success me-1"></i> Odoo 17 ISP Traffic &amp; Subscriber Monitor
-                        </div>
-                        <h2 class="fw-bold mb-1">ISP Billing &amp; MikroTik Control Center</h2>
-                        <p class="text-white-50 mb-0 small">
+                        <h2 class="fw-bold mb-1 text-white">MikroTik Control Center</h2>
+                        <p class="text-light opacity-75 mb-0 small">
                             Monitoring traffic real-time pelanggan aktif, grafik histori interface, otomatisasi pemblokiran tagihan, dan pengiriman notifikasi WhatsApp.
                         </p>
                     </div>
                     <div class="d-flex gap-2">
                         <button t-on-click="() => this.loadDashboardData(false)" 
-                                class="btn btn-outline-light font-weight-bold shadow-sm d-flex align-items-center gap-2">
+                                class="btn btn-outline-light text-white font-weight-bold shadow-sm d-flex align-items-center gap-2">
                             <i class="fa fa-refresh"></i> Refresh Traffic
                         </button>
                         <button t-on-click="onTriggerCron" 
