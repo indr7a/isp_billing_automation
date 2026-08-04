@@ -18,11 +18,18 @@ export class ISPBillingDashboard extends Component {
             loading: true,
             cronRunning: false,
             activeTab: 'dashboard', // 'dashboard' or 'topology'
+            summaryTab: 'usage', // 'usage', 'upload', 'speed'
             chartToggles: {}, // Map of interface key -> boolean (true to show chart)
+            collapsedGroups: {
+                offline: true,   // Offline group collapsed by default!
+                active: false,   // Active group expanded by default
+                isolated: false, // Isolated group expanded by default
+            },
             data: {
                 total_subscribers: 0,
                 active_subscribers: 0,
                 isolated_subscribers: 0,
+                offline_subscribers: 0,
                 mrr: 0,
                 total_unpaid_amount: 0,
                 unpaid_count: 0,
@@ -30,6 +37,9 @@ export class ISPBillingDashboard extends Component {
                 connected_routers: 0,
                 traffic_interfaces: [],
                 subscriber_traffics: [],
+                top_data_usage: [],
+                top_upload: [],
+                top_active_speed: [],
                 recent_logs: [],
                 topology_nodes: [],
                 topology_links: [],
@@ -68,6 +78,7 @@ export class ISPBillingDashboard extends Component {
                     total_subscribers: res.total_subscribers || 0,
                     active_subscribers: res.active_subscribers || 0,
                     isolated_subscribers: res.isolated_subscribers || 0,
+                    offline_subscribers: res.offline_subscribers || 0,
                     mrr: res.mrr || 0,
                     total_unpaid_amount: res.total_unpaid_amount || 0,
                     unpaid_count: res.unpaid_count || 0,
@@ -75,6 +86,9 @@ export class ISPBillingDashboard extends Component {
                     connected_routers: res.connected_routers || 0,
                     traffic_interfaces: res.traffic_interfaces || [],
                     subscriber_traffics: res.subscriber_traffics || [],
+                    top_data_usage: res.top_data_usage || [],
+                    top_upload: res.top_upload || [],
+                    top_active_speed: res.top_active_speed || [],
                     recent_logs: res.recent_logs || [],
                     topology_nodes: res.topology_nodes || [],
                     topology_links: res.topology_links || [],
@@ -105,6 +119,18 @@ export class ISPBillingDashboard extends Component {
 
     setTab(tabName) {
         this.state.activeTab = tabName;
+    }
+
+    setSummaryTab(summaryType) {
+        this.state.summaryTab = summaryType;
+    }
+
+    toggleGroup(groupKey) {
+        this.state.collapsedGroups[groupKey] = !this.state.collapsedGroups[groupKey];
+    }
+
+    getSubscribersByStatus(status) {
+        return (this.state.data.subscriber_traffics || []).filter(sub => sub.status === status);
     }
 
     toggleInterfaceChart(ifaceKey) {

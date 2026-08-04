@@ -205,7 +205,7 @@ class ISPDashboardService(models.AbstractModel):
                             tx_bytes = int(bytes_parts[0]) if len(bytes_parts) > 0 and bytes_parts[0].isdigit() else 0
                             rx_bytes = int(bytes_parts[1]) if len(bytes_parts) > 1 and bytes_parts[1].isdigit() else 0
 
-                            # 1. Filter out Administrative & System Queues (e.g. TOTAL BANDWITH, LIMIT LOKAL, GMEET & ZOOM)
+                            # 1. Filter out Administrative & System Queues
                             q_name_upper = q_name.upper()
                             if any(kw in q_name_upper for kw in ADMIN_QUEUE_KEYWORDS):
                                 continue
@@ -228,9 +228,6 @@ class ISPDashboardService(models.AbstractModel):
                                 continue
 
                             # Detect Real-Time Network Connection Status:
-                            # 'isolated' -> ONLY for registered Odoo subscribers that are isolated by billing
-                            # 'active' -> Online & transmitting traffic or active PPPoE session
-                            # 'offline' -> Client device modem/router is powered off, FO cable cut, or disabled queue
                             conntype = partner[0].connection_type if partner else 'static'
                             ppp_user = partner[0].ppp_username if partner else False
 
@@ -284,11 +281,22 @@ class ISPDashboardService(models.AbstractModel):
             except Exception as e:
                 _logger.warning(f"Bypassing traffic stats for router {router.name}: {str(e)}")
 
-        # Calculate Active vs Isolated Subscribers
+        # Calculate Active vs Isolated vs Offline Subscribers
         isolated_subscribers = len(non_terminated_subscribers.filtered(lambda s: s.service_status == 'isolated'))
-        active_subscribers = len(non_terminated_subscribers.filtered(lambda s: s.service_status == 'active'))
+        active_subscribers = len([s for s in subscriber_traffics if s['status'] == 'active'])
+        offline_subscribers = len([s for s in subscriber_traffics if s['status'] == 'offline'])
 
         subscriber_traffics.sort(key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)
+
+        # Generate Top 10 Leaderboards / Summaries
+        # 1. Top 10 Data Usage (Total Volume Download + Upload)
+        top_data_usage = sorted(subscriber_traffics, key=lambda x: x['rx_bytes'] + x['tx_bytes'], reverse=True)[:10]
+
+        # 2. Top 10 Upload (TX Volume / Rate)
+        top_upload = sorted(subscriber_traffics, key=lambda x: x['tx_bytes'] + x['tx_bps'], reverse=True)[:10]
+
+        # 3. Top 10 Active Speed (Highest Live Bandwidth)
+        top_active_speed = sorted(subscriber_traffics, key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)[:10]
 
         recent_logs_records = Log.search([
             '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
@@ -305,6 +313,7 @@ class ISPDashboardService(models.AbstractModel):
             'total_subscribers': total_subscribers,
             'active_subscribers': active_subscribers,
             'isolated_subscribers': isolated_subscribers,
+            'offline_subscribers': offline_subscribers,
             'mrr': mrr,
             'total_unpaid_amount': total_unpaid_amount,
             'unpaid_count': unpaid_count,
@@ -312,6 +321,9 @@ class ISPDashboardService(models.AbstractModel):
             'connected_routers': connected_routers,
             'traffic_interfaces': traffic_interfaces,
             'subscriber_traffics': subscriber_traffics,
+            'top_data_usage': top_data_usage,
+            'top_upload': top_upload,
+            'top_active_speed': top_active_speed,
             'recent_logs': recent_logs,
             'topology_nodes': topology_nodes,
             'topology_links': topology_links,

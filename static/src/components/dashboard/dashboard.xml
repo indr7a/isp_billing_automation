@@ -53,8 +53,11 @@
                             <div>
                                 <span class="text-muted small text-uppercase font-weight-bold">Total Pelanggan</span>
                                 <h3 class="fw-bold text-dark mb-0 mt-1" t-out="state.data.total_subscribers"/>
-                                <span class="badge bg-success mt-2">
+                                <span class="badge bg-success mt-2 me-1">
                                     <t t-out="state.data.active_subscribers"/> Aktif
+                                </span>
+                                <span class="badge bg-secondary mt-2">
+                                    <t t-out="state.data.offline_subscribers"/> Offline
                                 </span>
                             </div>
                             <div class="bg-primary-subtle text-primary p-3 rounded-circle fs-4">
@@ -194,79 +197,225 @@
                     </div>
                 </div>
 
-                <!-- Active Subscriber Traffic Section -->
-                <div class="col-12 col-lg-8">
-                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                <!-- TOP 10 ANALYTICS LEADERBOARDS SECTION -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h5 class="fw-bold text-dark mb-0">
-                                <i class="fa fa-tachometer text-primary me-2"></i>Traffic Pelanggan Aktif (Live Speed &amp; Total Volume)
+                                <i class="fa fa-trophy text-warning me-2"></i>Top 10 Summary &amp; Analytics Pelanggan / IP
                             </h5>
-                            <span class="badge bg-primary text-white font-monospace">
-                                <t t-out="(state.data.subscriber_traffics &amp;&amp; state.data.subscriber_traffics.length) || 0"/> Pelanggan Live
-                            </span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button t-on-click="() => this.setSummaryTab('usage')" 
+                                        t-attf-class="btn #{state.summaryTab == 'usage' ? 'btn-primary' : 'btn-outline-secondary'}">
+                                    <i class="fa fa-database me-1"></i>Paling Besar Penggunaan (Total GB)
+                                </button>
+                                <button t-on-click="() => this.setSummaryTab('upload')" 
+                                        t-attf-class="btn #{state.summaryTab == 'upload' ? 'btn-primary' : 'btn-outline-secondary'}">
+                                    <i class="fa fa-upload me-1"></i>Paling Besar Upload (TX)
+                                </button>
+                                <button t-on-click="() => this.setSummaryTab('speed')" 
+                                        t-attf-class="btn #{state.summaryTab == 'speed' ? 'btn-primary' : 'btn-outline-secondary'}">
+                                    <i class="fa fa-bolt me-1"></i>Paling Sering / Tinggi Bandwidth
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body">
-                            <div t-if="!(state.data.subscriber_traffics &amp;&amp; state.data.subscriber_traffics.length)" class="text-center py-4 text-muted">
-                                <i class="fa fa-users fa-2x mb-2 text-secondary"></i>
-                                <p class="mb-0">Belum ada traffic pelanggan terpantau (Pastikan Simple Queue MikroTik telah dikonfigurasi/disinkronkan).</p>
+                            <t t-set="activeSummaryList" t-value="state.summaryTab == 'usage' ? state.data.top_data_usage : state.summaryTab == 'upload' ? state.data.top_upload : state.data.top_active_speed"/>
+                            
+                            <div t-if="!activeSummaryList || !activeSummaryList.length" class="text-center py-3 text-muted small">
+                                Belum ada data statistik pelanggan.
                             </div>
                             <div t-else="" class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
+                                <table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
                                     <thead class="table-light">
                                         <tr>
+                                            <th style="width: 40px;">#</th>
                                             <th>Pelanggan &amp; Queue</th>
                                             <th>IP Address</th>
                                             <th class="text-center">Status</th>
-                                            <th class="text-end">Download (Rate / Total)</th>
-                                            <th class="text-end">Upload (Rate / Total)</th>
+                                            <th class="text-end">Total Volume (Download + Upload)</th>
+                                            <th class="text-end">Live Speed RX / TX</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr t-foreach="state.data.subscriber_traffics" t-as="sub" t-key="sub.name + '_' + sub.queue_name">
+                                        <tr t-foreach="activeSummaryList" t-as="item" t-key="item.name + '_' + item.queue_name">
+                                            <td class="fw-bold text-muted" t-out="item_index + 1"/>
                                             <td>
-                                                <div class="fw-bold text-dark d-flex align-items-center gap-1">
-                                                    <t t-out="sub.name"/>
-                                                    <span t-if="!sub.is_registered" class="badge bg-light text-muted border font-monospace" style="font-size: 9px;" title="Belum terdaftar sebagai kontak di Odoo">Unregistered Queue</span>
-                                                </div>
-                                                <div class="text-muted font-monospace" style="font-size: 11px;">
-                                                    <i class="fa fa-align-left me-1"></i><t t-out="sub.queue_name"/>
-                                                </div>
+                                                <div class="fw-bold text-dark" t-out="item.name"/>
+                                                <div class="text-muted font-monospace" style="font-size: 10px;" t-out="item.queue_name"/>
                                             </td>
-                                            <td class="font-monospace small text-muted">
-                                                <t t-out="sub.ip_address || '-'"/>
-                                            </td>
+                                            <td class="font-monospace small text-muted" t-out="item.ip_address || '-'"/>
                                             <td class="text-center">
-                                                <span t-if="sub.status == 'active'" class="badge bg-success">
-                                                    <i class="fa fa-check me-1"></i> Aktif
-                                                </span>
-                                                <span t-elif="sub.status == 'isolated'" class="badge bg-danger">
-                                                    <i class="fa fa-ban me-1"></i> Isolir
-                                                </span>
-                                                <span t-else="" class="badge bg-secondary">
-                                                    <i class="fa fa-power-off me-1"></i> Offline
-                                                </span>
+                                                <span t-if="item.status == 'active'" class="badge bg-success" style="font-size: 9px;">AKTIF</span>
+                                                <span t-elif="item.status == 'isolated'" class="badge bg-danger" style="font-size: 9px;">ISOLIR</span>
+                                                <span t-else="" class="badge bg-secondary" style="font-size: 9px;">OFFLINE</span>
                                             </td>
-                                            <td class="text-end">
-                                                <div class="fw-bold text-success">
-                                                    <i class="fa fa-download me-1 opacity-50"></i>
-                                                    <t t-out="formatSpeed(sub.rx_bps)"/>
-                                                </div>
-                                                <div class="text-muted font-monospace" style="font-size: 10px;">
-                                                    Total: <t t-out="formatBytes(sub.rx_bytes)"/>
+                                            <td class="text-end font-monospace fw-bold text-dark">
+                                                <t t-out="formatBytes(item.rx_bytes + item.tx_bytes)"/>
+                                                <div class="text-muted font-monospace" style="font-size: 9px;">
+                                                    Up: <t t-out="formatBytes(item.tx_bytes)"/> | Down: <t t-out="formatBytes(item.rx_bytes)"/>
                                                 </div>
                                             </td>
-                                            <td class="text-end">
-                                                <div class="fw-bold text-primary">
-                                                    <i class="fa fa-upload me-1 opacity-50"></i>
-                                                    <t t-out="formatSpeed(sub.tx_bps)"/>
-                                                </div>
-                                                <div class="text-muted font-monospace" style="font-size: 10px;">
-                                                    Total: <t t-out="formatBytes(sub.tx_bytes)"/>
-                                                </div>
+                                            <td class="text-end font-monospace">
+                                                <span class="text-success me-2">↓ <t t-out="formatSpeed(item.rx_bps)"/></span>
+                                                <span class="text-primary">↑ <t t-out="formatSpeed(item.tx_bps)"/></span>
                                             </td>
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CATEGORIZED COLLAPSIBLE SUBSCRIBERS TRAFFIC SECTION -->
+                <div class="col-12 col-lg-8">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                            <h5 class="fw-bold text-dark mb-0">
+                                <i class="fa fa-list text-primary me-2"></i>Daftar Pelanggan Terkategori (Status &amp; Traffic Real-Time)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- GROUP 1: PELANGGAN AKTIF -->
+                            <t t-set="activeList" t-value="getSubscribersByStatus('active')"/>
+                            <div class="border rounded mb-3 overflow-hidden">
+                                <div class="p-3 bg-success bg-opacity-10 d-flex justify-content-between align-items-center cursor-pointer" 
+                                     t-on-click="() => this.toggleGroup('active')">
+                                    <div class="fw-bold text-success d-flex align-items-center gap-2">
+                                        <i t-attf-class="fa #{state.collapsedGroups.active ? 'fa-chevron-right' : 'fa-chevron-down'}"></i>
+                                        <i class="fa fa-check-circle fs-5"></i>
+                                        <span>PELANGGAN AKTIF / ONLINE</span>
+                                        <span class="badge bg-success ms-2" t-out="activeList.length"/>
+                                    </div>
+                                    <span class="text-muted small">Klik untuk melipat / membuka</span>
+                                </div>
+                                <div t-if="!state.collapsedGroups.active" class="table-responsive border-top">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Pelanggan &amp; Queue</th>
+                                                <th>IP Address</th>
+                                                <th class="text-end">Download (Rate / Total)</th>
+                                                <th class="text-end">Upload (Rate / Total)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-if="!activeList.length">
+                                                <td colspan="4" class="text-center text-muted py-3">Tidak ada pelanggan aktif saat ini.</td>
+                                            </tr>
+                                            <tr t-foreach="activeList" t-as="sub" t-key="sub.name + '_' + sub.queue_name">
+                                                <td>
+                                                    <div class="fw-bold text-dark" t-out="sub.name"/>
+                                                    <div class="text-muted font-monospace" style="font-size: 11px;" t-out="sub.queue_name"/>
+                                                </td>
+                                                <td class="font-monospace small text-muted" t-out="sub.ip_address || '-'"/>
+                                                <td class="text-end">
+                                                    <div class="fw-bold text-success"><t t-out="formatSpeed(sub.rx_bps)"/></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;">Total: <t t-out="formatBytes(sub.rx_bytes)"/></div>
+                                                </td>
+                                                <td class="text-end">
+                                                    <div class="fw-bold text-primary"><t t-out="formatSpeed(sub.tx_bps)"/></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;">Total: <t t-out="formatBytes(sub.tx_bytes)"/></div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- GROUP 2: PELANGGAN TERISOLIR -->
+                            <t t-set="isolatedList" t-value="getSubscribersByStatus('isolated')"/>
+                            <div class="border rounded mb-3 overflow-hidden">
+                                <div class="p-3 bg-danger bg-opacity-10 d-flex justify-content-between align-items-center cursor-pointer" 
+                                     t-on-click="() => this.toggleGroup('isolated')">
+                                    <div class="fw-bold text-danger d-flex align-items-center gap-2">
+                                        <i t-attf-class="fa #{state.collapsedGroups.isolated ? 'fa-chevron-right' : 'fa-chevron-down'}"></i>
+                                        <i class="fa fa-ban fs-5"></i>
+                                        <span>PELANGGAN TERISOLIR (MENUNGGAK)</span>
+                                        <span class="badge bg-danger ms-2" t-out="isolatedList.length"/>
+                                    </div>
+                                    <span class="text-muted small">Klik untuk melipat / membuka</span>
+                                </div>
+                                <div t-if="!state.collapsedGroups.isolated" class="table-responsive border-top">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Pelanggan &amp; Queue</th>
+                                                <th>IP Address</th>
+                                                <th class="text-end">Download (Rate / Total)</th>
+                                                <th class="text-end">Upload (Rate / Total)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-if="!isolatedList.length">
+                                                <td colspan="4" class="text-center text-muted py-3">Tidak ada pelanggan terisolir saat ini.</td>
+                                            </tr>
+                                            <tr t-foreach="isolatedList" t-as="sub" t-key="sub.name + '_' + sub.queue_name">
+                                                <td>
+                                                    <div class="fw-bold text-dark" t-out="sub.name"/>
+                                                    <div class="text-muted font-monospace" style="font-size: 11px;" t-out="sub.queue_name"/>
+                                                </td>
+                                                <td class="font-monospace small text-muted" t-out="sub.ip_address || '-'"/>
+                                                <td class="text-end">
+                                                    <div class="fw-bold text-success"><t t-out="formatSpeed(sub.rx_bps)"/></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;">Total: <t t-out="formatBytes(sub.rx_bytes)"/></div>
+                                                </td>
+                                                <td class="text-end">
+                                                    <div class="fw-bold text-primary"><t t-out="formatSpeed(sub.tx_bps)"/></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;">Total: <t t-out="formatBytes(sub.tx_bytes)"/></div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- GROUP 3: PELANGGAN OFFLINE / LURING (COLLAPSED BY DEFAULT) -->
+                            <t t-set="offlineList" t-value="getSubscribersByStatus('offline')"/>
+                            <div class="border rounded overflow-hidden">
+                                <div class="p-3 bg-secondary bg-opacity-10 d-flex justify-content-between align-items-center cursor-pointer" 
+                                     t-on-click="() => this.toggleGroup('offline')">
+                                    <div class="fw-bold text-secondary d-flex align-items-center gap-2">
+                                        <i t-attf-class="fa #{state.collapsedGroups.offline ? 'fa-chevron-right' : 'fa-chevron-down'}"></i>
+                                        <i class="fa fa-power-off fs-5"></i>
+                                        <span>PELANGGAN OFFLINE / LURING (MODEM MATI / KABEL PUTUS)</span>
+                                        <span class="badge bg-secondary ms-2" t-out="offlineList.length"/>
+                                    </div>
+                                    <span class="text-muted small">Klik untuk membuka (<t t-out="state.collapsedGroups.offline ? 'Terlipat' : 'Terbuka'"/>)</span>
+                                </div>
+                                <div t-if="!state.collapsedGroups.offline" class="table-responsive border-top">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Pelanggan &amp; Queue</th>
+                                                <th>IP Address</th>
+                                                <th class="text-end">Download (Rate / Total)</th>
+                                                <th class="text-end">Upload (Rate / Total)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-if="!offlineList.length">
+                                                <td colspan="4" class="text-center text-muted py-3">Tidak ada pelanggan offline saat ini.</td>
+                                            </tr>
+                                            <tr t-foreach="offlineList" t-as="sub" t-key="sub.name + '_' + sub.queue_name">
+                                                <td>
+                                                    <div class="fw-bold text-dark" t-out="sub.name"/>
+                                                    <div class="text-muted font-monospace" style="font-size: 11px;" t-out="sub.queue_name"/>
+                                                </td>
+                                                <td class="font-monospace small text-muted" t-out="sub.ip_address || '-'"/>
+                                                <td class="text-end">
+                                                    <div class="fw-bold text-success"><t t-out="formatSpeed(sub.rx_bps)"/></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;">Total: <t t-out="formatBytes(sub.rx_bytes)"/></div>
+                                                </td>
+                                                <td class="text-end">
+                                                    <div class="fw-bold text-primary"><t t-out="formatSpeed(sub.tx_bps)"/></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;">Total: <t t-out="formatBytes(sub.tx_bytes)"/></div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
