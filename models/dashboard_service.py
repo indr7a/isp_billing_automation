@@ -28,8 +28,8 @@ class ISPDashboardService(models.AbstractModel):
             ('payment_state', 'not in', ['paid', 'in_payment', 'reversed']),
         ]
         
-        # Add support for subscription_package module if present
-        if 'is_subscription' in Move._fields:
+        # Add support for subscription_package module if present and installed in registry
+        if 'subscription.package' in self.env and 'is_subscription' in Move._fields:
             unpaid_domain.extend(['|', '|', ('is_isp_invoice', '=', True), ('is_subscription', '=', True), ('partner_id.is_isp_subscriber', '=', True)])
         else:
             unpaid_domain.extend(['|', ('is_isp_invoice', '=', True), ('partner_id.is_isp_subscriber', '=', True)])
