@@ -3,18 +3,18 @@
     <t t-name="isp_billing_automation.Dashboard">
         <div class="o_isp_dashboard container-fluid p-4 pb-5">
             <!-- Header Banner Dark Grey Charcoal Gradient -->
-            <div class="card isp-header-banner shadow-sm mb-4 rounded-3 overflow-hidden">
+            <div class="card isp-header-banner shadow-sm mb-3 rounded-3 overflow-hidden">
                 <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                     <div>
                         <h2 class="fw-bold mb-1 text-white">MikroTik Control Center</h2>
                         <p class="text-light opacity-75 mb-0 small">
-                            Monitoring traffic real-time pelanggan aktif, grafik histori interface, otomatisasi pemblokiran tagihan, dan pengiriman notifikasi WhatsApp.
+                            Monitoring traffic real-time pelanggan aktif, peta topologi jaringan otomatis (MNDP), dan otomatisasi billing.
                         </p>
                     </div>
                     <div class="d-flex gap-2">
                         <button t-on-click="() => this.loadDashboardData(false)" 
                                 class="btn btn-outline-light text-white font-weight-bold shadow-sm d-flex align-items-center gap-2">
-                            <i class="fa fa-refresh"></i> Refresh Traffic
+                            <i class="fa fa-refresh"></i> Refresh Data
                         </button>
                         <button t-on-click="onTriggerCron" 
                                 t-att-disabled="state.cronRunning"
@@ -26,14 +26,26 @@
                 </div>
             </div>
 
+            <!-- View Switcher Tabs (Dashboard vs Topology Map) -->
+            <div class="d-flex gap-2 mb-4 border-bottom pb-2">
+                <button t-on-click="() => this.setTab('dashboard')" 
+                        t-attf-class="btn btn-sm #{state.activeTab == 'dashboard' ? 'btn-dark fw-bold' : 'btn-light border'} text-nowrap">
+                    <i class="fa fa-tachometer me-1"></i> Dashboard Monitoring
+                </button>
+                <button t-on-click="() => this.setTab('topology')" 
+                        t-attf-class="btn btn-sm #{state.activeTab == 'topology' ? 'btn-dark fw-bold' : 'btn-light border'} text-nowrap">
+                    <i class="fa fa-sitemap me-1"></i> Visual Peta Topologi Jaringan (MNDP)
+                </button>
+            </div>
+
             <!-- Loading Spinner -->
             <div t-if="state.loading" class="text-center py-5">
                 <i class="fa fa-circle-o-notch fa-spin fa-3x text-primary mb-3"></i>
-                <p class="text-muted">Memuat data statistik &amp; traffic pelanggan MikroTik...</p>
+                <p class="text-muted">Memuat data statistik &amp; topologi MikroTik...</p>
             </div>
 
-            <!-- Dashboard Content -->
-            <div t-else="" class="row g-4 pb-5">
+            <!-- TAB 1: DASHBOARD MONITORING -->
+            <div t-elif="state.activeTab == 'dashboard'" class="row g-4 pb-5">
                 <!-- KPI Cards -->
                 <div class="col-12 col-sm-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-3 h-100 cursor-pointer" t-on-click="openSubscribers">
@@ -156,24 +168,19 @@
 
                                             <div class="position-relative" style="height: 50px;">
                                                 <svg width="100%" height="45" viewBox="0 0 220 45" style="background: #fafafa; border: 1px solid #e9ecef; border-radius: 4px;">
-                                                    <!-- Grid Lines -->
                                                     <line x1="0" y1="5" x2="220" y2="5" stroke="#dee2e6" stroke-dasharray="2,2"/>
                                                     <line x1="0" y1="22" x2="220" y2="22" stroke="#e9ecef" stroke-dasharray="2,2"/>
                                                     <line x1="0" y1="40" x2="220" y2="40" stroke="#ced4da" stroke-width="1"/>
                                                     
-                                                    <!-- Vertical Grid Lines -->
                                                     <line x1="55" y1="0" x2="55" y2="45" stroke="#f1f3f5" stroke-dasharray="2,2"/>
                                                     <line x1="110" y1="0" x2="110" y2="45" stroke="#f1f3f5" stroke-dasharray="2,2"/>
                                                     <line x1="165" y1="0" x2="165" y2="45" stroke="#f1f3f5" stroke-dasharray="2,2"/>
 
-                                                    <!-- RX Polyline (Green) -->
                                                     <polyline fill="none" stroke="#198754" stroke-width="2" t-att-points="chartMeta.rxPoints"/>
-                                                    <!-- TX Polyline (Blue) -->
                                                     <polyline fill="none" stroke="#0d6efd" stroke-width="2" stroke-dasharray="3,3" t-att-points="chartMeta.txPoints"/>
                                                 </svg>
                                             </div>
 
-                                            <!-- X-Axis Time & Y-Axis 0bps Legend -->
                                             <div class="d-flex justify-content-between text-muted font-monospace mt-1" style="font-size: 8px;">
                                                 <span><i class="fa fa-clock-o me-1"></i><t t-out="chartMeta.startTime"/></span>
                                                 <span>0 bps</span>
@@ -298,6 +305,82 @@
                                         <span class="text-muted text-nowrap" style="font-size: 10px;" t-out="log.timestamp"/>
                                     </div>
                                     <div class="small text-dark text-truncate" t-out="log.message"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: NETWORK TOPOLOGY MAP (MNDP / DISCOVERED NEIGHBORS) -->
+            <div t-elif="state.activeTab == 'topology'" class="row g-4 pb-5">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                            <h5 class="fw-bold text-dark mb-0">
+                                <i class="fa fa-sitemap text-primary me-2"></i>Visual Peta Topologi Jaringan (MNDP / LLDP / Discovered Neighbors)
+                            </h5>
+                            <span class="badge bg-dark text-white font-monospace">
+                                <t t-out="(state.data.topology_nodes &amp;&amp; state.data.topology_nodes.length) || 0"/> Perangkat Terdeteksi
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-4">
+                                Topologi jaringan ini dibuat secara otomatis dari pengenalan protokol **MNDP / CDP / LLDP (`/ip/neighbor`)** dan Simple Queue pada Router MikroTik yang terhubung.
+                            </p>
+
+                            <div t-if="!(state.data.topology_nodes &amp;&amp; state.data.topology_nodes.length)" class="text-center py-5 text-muted">
+                                <i class="fa fa-sitemap fa-3x mb-3 text-secondary"></i>
+                                <p>Belum ada node topologi terdeteksi dari Router. Pastikan Router MikroTik terhubung dengan benar.</p>
+                            </div>
+                            
+                            <div t-else="" class="p-3 bg-light rounded border">
+                                <!-- Hierarchical Tree Visualizer -->
+                                <div class="d-flex flex-column align-items-center gap-4">
+                                    <!-- Level 1: Routers -->
+                                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                                        <t t-foreach="state.data.topology_nodes" t-as="node" t-key="node.id">
+                                            <div t-if="node.type == 'router'" class="p-3 bg-dark text-white rounded-3 shadow-sm text-center font-monospace" style="min-width: 180px;">
+                                                <i class="fa fa-server fa-2x mb-2 text-info"></i>
+                                                <div class="fw-bold" t-out="node.label"/>
+                                                <div class="small opacity-75" t-out="node.ip"/>
+                                                <span class="badge bg-success mt-2">Core Router</span>
+                                            </div>
+                                        </t>
+                                    </div>
+
+                                    <i class="fa fa-arrow-down text-secondary fs-4"></i>
+
+                                    <!-- Level 2: Interfaces & Neighbors (Switches/AP) -->
+                                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                                        <t t-foreach="state.data.topology_nodes" t-as="node" t-key="node.id">
+                                            <div t-if="node.type == 'interface' or node.type == 'neighbor'" class="p-2 bg-white border rounded shadow-sm text-center" style="min-width: 150px;">
+                                                <i t-attf-class="fa #{node.type == 'neighbor' ? 'fa-wifi text-primary' : 'fa-plug text-secondary'} fa-lg mb-1"></i>
+                                                <div class="fw-bold small text-dark" t-out="node.label"/>
+                                                <div class="text-muted font-monospace" style="font-size: 10px;" t-out="node.ip || 'Local Port'"/>
+                                                <span t-if="node.status == 'up' or node.status == 'connected'" class="badge bg-success" style="font-size: 9px;">CONNECTED</span>
+                                                <span t-else="" class="badge bg-secondary" style="font-size: 9px;">DOWN</span>
+                                            </div>
+                                        </t>
+                                    </div>
+
+                                    <i class="fa fa-arrow-down text-secondary fs-4"></i>
+
+                                    <!-- Level 3: Subscribers -->
+                                    <div class="w-100 p-3 bg-white rounded border">
+                                        <h6 class="fw-bold text-dark mb-3"><i class="fa fa-users me-2 text-primary"></i>Pelanggan Terhubung (Subscribers)</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <t t-foreach="state.data.topology_nodes" t-as="node" t-key="node.id">
+                                                <div t-if="node.type == 'subscriber'" class="p-2 border rounded text-center bg-light" style="min-width: 140px;">
+                                                    <i class="fa fa-user me-1" t-attf-class="#{node.status == 'active' ? 'text-success' : 'text-danger'}"></i>
+                                                    <span class="fw-bold small text-dark" t-out="node.label"/>
+                                                    <div class="text-muted font-monospace" style="font-size: 10px;" t-out="node.ip"/>
+                                                    <span t-if="node.status == 'active'" class="badge bg-success" style="font-size: 8px;">AKTIF</span>
+                                                    <span t-else="" class="badge bg-danger" style="font-size: 8px;">ISOLIR</span>
+                                                </div>
+                                            </t>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

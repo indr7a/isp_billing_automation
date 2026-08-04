@@ -10,7 +10,7 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Filtered Subscriber Traffic & Interface Stats)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Filtered Subscriber Traffic & Topology Data)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
@@ -40,12 +40,26 @@ class ISPDashboardService(models.AbstractModel):
         traffic_interfaces = []
         # 2. Active Subscriber Traffic Stats (Filtered for Odoo Subscribers & Live Queues)
         subscriber_traffics = []
+        # 3. Topology Nodes & Links (Discovered via MNDP / IP Neighbors API)
+        topology_nodes = []
+        topology_links = []
 
         for router in routers.filtered(lambda r: r.status == 'connected'):
+            # Add Main Router Node
+            router_node_id = f"router_{router.id}"
+            topology_nodes.append({
+                'id': router_node_id,
+                'label': router.name,
+                'type': 'router',
+                'ip': router.host,
+                'status': 'connected',
+                'icon': 'fa-server'
+            })
+
             try:
                 conn, api_conn = router.get_connection()
                 if api_conn:
-                    # Interface Traffic
+                    # Interface Traffic & Discovered Neighbors
                     try:
                         if_resource = api_conn.get_resource('/interface')
                         interfaces = if_resource.get()
@@ -79,10 +93,58 @@ class ISPDashboardService(models.AbstractModel):
                                 'rx_bps': rx_bps,
                                 'tx_bps': tx_bps,
                             })
+
+                            # Interface Topology Node
+                            if_node_id = f"if_{router.id}_{if_name}"
+                            topology_nodes.append({
+                                'id': if_node_id,
+                                'label': if_name,
+                                'type': 'interface',
+                                'parent': router_node_id,
+                                'status': 'up' if is_running else 'down',
+                                'rx_bps': rx_bps,
+                                'tx_bps': tx_bps,
+                                'icon': 'fa-plug'
+                            })
+                            topology_links.append({
+                                'source': router_node_id,
+                                'target': if_node_id,
+                                'label': if_name
+                            })
+
                     except Exception as e_if:
                         _logger.warning(f"Could not fetch interfaces: {str(e_if)}")
 
-                    # Simple Queue Subscriber Traffic (With Smart Filtering)
+                    # Fetch IP Neighbors (MNDP / CDP / LLDP)
+                    try:
+                        nb_resource = api_conn.get_resource('/ip/neighbor')
+                        neighbors = nb_resource.get()
+                        for nb in neighbors:
+                            nb_name = nb.get('identity') or nb.get('system-caps') or nb.get('address', 'Unknown Device')
+                            nb_iface = nb.get('interface', '')
+                            nb_ip = nb.get('address', '')
+                            nb_platform = nb.get('platform', '') or nb.get('board', 'Network Device')
+
+                            nb_node_id = f"nb_{router.id}_{nb_name}_{nb_ip}"
+                            topology_nodes.append({
+                                'id': nb_node_id,
+                                'label': f"{nb_name} ({nb_platform})",
+                                'type': 'neighbor',
+                                'ip': nb_ip,
+                                'status': 'connected',
+                                'icon': 'fa-wifi'
+                            })
+
+                            parent_id = f"if_{router.id}_{nb_iface}" if nb_iface else router_node_id
+                            topology_links.append({
+                                'source': parent_id,
+                                'target': nb_node_id,
+                                'label': f"Port {nb_iface}"
+                            })
+                    except Exception as e_nb:
+                        _logger.warning(f"Could not fetch neighbors: {str(e_nb)}")
+
+                    # Simple Queue Subscriber Traffic (With Topology Sub-Nodes)
                     try:
                         sq_resource = api_conn.get_resource('/queue/simple')
                         queues = sq_resource.get()
@@ -107,9 +169,6 @@ class ISPDashboardService(models.AbstractModel):
                                 lambda s: s.simple_queue_name == q_name or s.ip_address == clean_ip or (s.name == q_name and s.is_isp_subscriber)
                             )
 
-                            # FILTER RULE:
-                            # Include IF it matches a registered Odoo Subscriber OR IF it has active live traffic (rx_bps > 0 or tx_bps > 0)
-                            # Exclude 0-bps orphan queues that do NOT belong to any Odoo subscriber.
                             if not partner and rx_bps == 0 and tx_bps == 0:
                                 continue
 
@@ -129,6 +188,25 @@ class ISPDashboardService(models.AbstractModel):
                                 'rx_bytes': rx_bytes,
                                 'tx_bytes': tx_bytes,
                             })
+
+                            # Subscriber Topology Node
+                            sub_node_id = f"sub_{q_name}_{clean_ip}"
+                            topology_nodes.append({
+                                'id': sub_node_id,
+                                'label': partner_name,
+                                'type': 'subscriber',
+                                'ip': clean_ip,
+                                'status': 'isolated' if is_disabled else 'active',
+                                'rx_bps': rx_bps,
+                                'tx_bps': tx_bps,
+                                'icon': 'fa-user'
+                            })
+                            topology_links.append({
+                                'source': router_node_id,
+                                'target': sub_node_id,
+                                'label': clean_ip
+                            })
+
                     except Exception as e_sq:
                         _logger.warning(f"Could not fetch simple queue traffic: {str(e_sq)}")
 
@@ -136,11 +214,10 @@ class ISPDashboardService(models.AbstractModel):
             except Exception as e:
                 _logger.warning(f"Bypassing traffic stats for router {router.name}: {str(e)}")
 
-        # Calculate Active vs Isolated Subscribers combining Odoo partner status & MikroTik queue disabled status
+        # Calculate Active vs Isolated Subscribers
         isolated_partner_ids = set(subscribers.filtered(lambda s: s.service_status == 'isolated').ids)
         for st in subscriber_traffics:
             if st.get('is_disabled'):
-                # Find matching partner ID
                 match_p = subscribers.filtered(lambda s: s.simple_queue_name == st['queue_name'] or s.ip_address == st['ip_address'] or s.name == st['name'])
                 if match_p:
                     isolated_partner_ids.add(match_p[0].id)
@@ -171,6 +248,8 @@ class ISPDashboardService(models.AbstractModel):
             'traffic_interfaces': traffic_interfaces,
             'subscriber_traffics': subscriber_traffics,
             'recent_logs': recent_logs,
+            'topology_nodes': topology_nodes,
+            'topology_links': topology_links,
         }
 
     @api.model

@@ -17,6 +17,7 @@ export class ISPBillingDashboard extends Component {
         this.state = useState({
             loading: true,
             cronRunning: false,
+            activeTab: 'dashboard', // 'dashboard' or 'topology'
             chartToggles: {}, // Map of interface key -> boolean (true to show chart)
             data: {
                 total_subscribers: 0,
@@ -30,6 +31,8 @@ export class ISPBillingDashboard extends Component {
                 traffic_interfaces: [],
                 subscriber_traffics: [],
                 recent_logs: [],
+                topology_nodes: [],
+                topology_links: [],
             }
         });
 
@@ -73,6 +76,8 @@ export class ISPBillingDashboard extends Component {
                     traffic_interfaces: res.traffic_interfaces || [],
                     subscriber_traffics: res.subscriber_traffics || [],
                     recent_logs: res.recent_logs || [],
+                    topology_nodes: res.topology_nodes || [],
+                    topology_links: res.topology_links || [],
                 };
 
                 // Update rolling interface history
@@ -96,6 +101,10 @@ export class ISPBillingDashboard extends Component {
         } finally {
             this.state.loading = false;
         }
+    }
+
+    setTab(tabName) {
+        this.state.activeTab = tabName;
     }
 
     toggleInterfaceChart(ifaceKey) {
