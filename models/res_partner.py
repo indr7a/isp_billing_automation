@@ -37,7 +37,7 @@ class ResPartner(models.Model):
             self.monthly_fee = self.isp_package_id.lst_price
 
     def send_wa_notification(self, message):
-        """Sends WhatsApp message via Gateway API (e.g. Fonnte / Wablas)"""
+        """Sends WhatsApp message via fs_whatsapp_connector (whatsapp.account) or fallback HTTP Gateway"""
         self.ensure_one()
         phone = self.wa_phone or self.mobile or self.phone
         if not phone:
@@ -48,6 +48,29 @@ class ResPartner(models.Model):
         if phone.startswith('08'):
             phone = '628' + phone[2:]
 
+        # 1. Integration with fs_whatsapp_connector (whatsapp.account)
+        if 'whatsapp.account' in self.env:
+            try:
+                wa_account = self.env['whatsapp.account'].sudo().get_active_account()
+                if wa_account:
+                    # Attempt send message via whatsapp.account api_post
+                    payload = {
+                        'phone': phone,
+                        'message': message
+                    }
+                    res = wa_account.api_post('/send/message', payload)
+                    _logger.info(f"WA sent via fs_whatsapp_connector to {phone}. Response: {res}")
+                    self.env['isp.log'].create({
+                        'source': 'whatsapp',
+                        'level': 'info',
+                        'message': f"WhatsApp Terkirim (fs_whatsapp_connector) ke {self.name} ({phone})",
+                        'details': f"Pesan: {message}\nAccount: {wa_account.name} (Device: {wa_account.device_id})\nResponse: {res}"
+                    })
+                    return True
+            except Exception as e_fs:
+                _logger.warning(f"Failed sending via fs_whatsapp_connector: {str(e_fs)}. Trying fallback HTTP gateway...")
+
+        # 2. Fallback to System Parameters HTTP Gateway API (Fonnte / Wablas)
         icp = self.env['ir.config_parameter'].sudo()
         wa_url = icp.get_param('isp_wa_gateway_url', 'https://api.fonnte.com/send')
         wa_token = icp.get_param('isp_wa_gateway_token', '')
@@ -57,7 +80,7 @@ class ResPartner(models.Model):
             self.env['isp.log'].create({
                 'source': 'whatsapp',
                 'level': 'warning',
-                'message': f"WA Not Send (No Token) to {self.name} ({phone})",
+                'message': f"WA Not Send (No Token/Account) to {self.name} ({phone})",
                 'details': f"Content: {message}"
             })
             return False

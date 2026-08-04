@@ -53,7 +53,7 @@
                 </div>
 
                 <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="card border-0 shadow-sm rounded-3 h-100 cursor-pointer" t-on-click="openSubscribers">
+                    <div class="card border-0 shadow-sm rounded-3 h-100 cursor-pointer" t-on-click="openIsolatedSubscribers">
                         <div class="card-body p-3 d-flex align-items-center justify-content-between">
                             <div>
                                 <span class="text-muted small text-uppercase font-weight-bold">Pelanggan Terisolir</span>
@@ -83,7 +83,7 @@
                 </div>
 
                 <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                    <div class="card border-0 shadow-sm rounded-3 h-100 cursor-pointer" t-on-click="openUnpaidInvoices">
                         <div class="card-body p-3 d-flex align-items-center justify-content-between">
                             <div>
                                 <span class="text-muted small text-uppercase font-weight-bold">Total Tunggakan (Unpaid)</span>
