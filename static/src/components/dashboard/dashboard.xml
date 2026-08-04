@@ -102,12 +102,12 @@
                     </div>
                 </div>
 
-                <!-- Compact Interface Traffic Row -->
+                <!-- Compact Interface Traffic Row (With Download RX & Upload TX Rate) -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h6 class="fw-bold text-dark mb-0">
-                                <i class="fa fa-server text-info me-2"></i>Status Ringkas Interface Router MikroTik
+                                <i class="fa fa-server text-info me-2"></i>Status Traffic &amp; Bandwidth Interface MikroTik
                             </h6>
                             <span class="badge bg-success text-white font-monospace">Live (3s)</span>
                         </div>
@@ -116,16 +116,23 @@
                                 Belum ada interface terdeteksi.
                             </div>
                             <div t-else="" class="row g-2">
-                                <div t-foreach="state.data.traffic_interfaces" t-as="iface" t-key="iface.router_name + '_' + iface.name" class="col-12 col-sm-6 col-md-3">
-                                    <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
-                                        <div>
+                                <div t-foreach="state.data.traffic_interfaces" t-as="iface" t-key="iface.router_name + '_' + iface.name" class="col-12 col-sm-6 col-md-4 col-xl-3">
+                                    <div class="p-2 border rounded bg-light">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
                                             <div class="fw-bold small text-dark" t-out="iface.name"/>
-                                            <div class="text-muted" style="font-size: 10px;" t-out="iface.router_name"/>
-                                        </div>
-                                        <div class="text-end">
                                             <span t-if="iface.running" class="badge bg-success" style="font-size: 10px;">UP</span>
                                             <span t-else="" class="badge bg-secondary" style="font-size: 10px;">DOWN</span>
-                                            <div class="text-muted font-monospace" style="font-size: 10px;" t-out="formatBytes(iface.rx_bytes + iface.tx_bytes)"/>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center" style="font-size: 11px;">
+                                            <span class="text-success font-monospace">
+                                                <i class="fa fa-download me-1"></i><t t-out="formatSpeed(iface.rx_bps)"/>
+                                            </span>
+                                            <span class="text-primary font-monospace">
+                                                <i class="fa fa-upload me-1"></i><t t-out="formatSpeed(iface.tx_bps)"/>
+                                            </span>
+                                        </div>
+                                        <div class="text-end text-muted mt-1" style="font-size: 10px;">
+                                            Total: <t t-out="formatBytes(iface.rx_bytes + iface.tx_bytes)"/>
                                         </div>
                                     </div>
                                 </div>
@@ -181,11 +188,11 @@
                                                 </span>
                                             </td>
                                             <td class="text-end fw-bold text-success">
-                                                <i class="fa fa-arrow-down me-1 opacity-50"></i>
+                                                <i class="fa fa-download me-1 opacity-50"></i>
                                                 <t t-out="formatSpeed(sub.rx_bps)"/>
                                             </td>
                                             <td class="text-end fw-bold text-primary">
-                                                <i class="fa fa-arrow-up me-1 opacity-50"></i>
+                                                <i class="fa fa-upload me-1 opacity-50"></i>
                                                 <t t-out="formatSpeed(sub.tx_bps)"/>
                                             </td>
                                         </tr>

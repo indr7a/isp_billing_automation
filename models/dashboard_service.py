@@ -10,7 +10,7 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Compact Interface & Active Subscriber Traffic)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Live Interface RX/TX Rates)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
@@ -40,7 +40,7 @@ class ISPDashboardService(models.AbstractModel):
         total_routers = len(routers)
         connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
 
-        # 1. Interface Traffic Stats (Compact)
+        # 1. Interface Traffic Stats (with live RX/TX bps rates)
         traffic_interfaces = []
         # 2. Active Subscriber Traffic Stats (Simple Queues & PPPoE)
         subscriber_traffics = []
@@ -49,20 +49,39 @@ class ISPDashboardService(models.AbstractModel):
             try:
                 conn, api_conn = router.get_connection()
                 if api_conn:
-                    # Interface Traffic
+                    # Interface Traffic with monitor-traffic rates
                     try:
                         if_resource = api_conn.get_resource('/interface')
                         interfaces = if_resource.get()
-                        for item in interfaces[:4]: # Compact top 4 interfaces
+                        for item in interfaces[:6]: # Top 6 interfaces
                             if_name = item.get('name', '')
                             is_running = item.get('running') == 'true' or item.get('running') == True
+                            
+                            rx_byte = int(item.get('rx-byte', 0))
+                            tx_byte = int(item.get('tx-byte', 0))
+
+                            rx_bps = 0
+                            tx_bps = 0
+                            try:
+                                traffic_mon = api_conn.get_binary_resource('/').call('interface/monitor-traffic', {
+                                    'interface': if_name,
+                                    'once': ''
+                                })
+                                if traffic_mon and len(traffic_mon) > 0:
+                                    rx_bps = int(traffic_mon[0].get('rx-bits-per-second', 0))
+                                    tx_bps = int(traffic_mon[0].get('tx-bits-per-second', 0))
+                            except Exception:
+                                pass
+
                             traffic_interfaces.append({
                                 'router_name': router.name,
                                 'name': if_name,
                                 'type': item.get('type', 'ether'),
                                 'running': is_running,
-                                'rx_bytes': int(item.get('rx-byte', 0)),
-                                'tx_bytes': int(item.get('tx-byte', 0)),
+                                'rx_bytes': rx_byte,
+                                'tx_bytes': tx_byte,
+                                'rx_bps': rx_bps,
+                                'tx_bps': tx_bps,
                             })
                     except Exception as e_if:
                         _logger.warning(f"Could not fetch interfaces: {str(e_if)}")
@@ -77,13 +96,11 @@ class ISPDashboardService(models.AbstractModel):
                             clean_ip = q_target.split('/')[0] if q_target else ''
                             is_disabled = q.get('disabled') == 'true' or q.get('disabled') == True
                             
-                            # Parse rate: "upload_bps/download_bps"
                             rate_str = q.get('rate', '0/0')
                             rate_parts = rate_str.split('/') if '/' in rate_str else ['0', '0']
                             tx_bps = int(rate_parts[0]) if len(rate_parts) > 0 and rate_parts[0].isdigit() else 0
                             rx_bps = int(rate_parts[1]) if len(rate_parts) > 1 and rate_parts[1].isdigit() else 0
 
-                            # Match with Odoo Partner
                             partner = subscribers.filtered(
                                 lambda s: s.simple_queue_name == q_name or s.ip_address == clean_ip or s.name == q_name
                             )
@@ -106,10 +123,8 @@ class ISPDashboardService(models.AbstractModel):
             except Exception as e:
                 _logger.warning(f"Bypassing traffic stats for router {router.name}: {str(e)}")
 
-        # Sort active subscriber traffic by highest download bps
         subscriber_traffics.sort(key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)
 
-        # Recent Logs (latest 5)
         recent_logs_records = Log.search([], limit=5, order='timestamp desc, id desc')
         recent_logs = [{
             'id': log.id,
