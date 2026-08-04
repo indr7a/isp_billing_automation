@@ -29,8 +29,12 @@
             <xpath expr="//notebook" position="inside">
                 <page string="ISP Subscription" name="isp_subscription">
                     <group>
-                        <group string="Subscription Profile">
+                        <group string="Subscription Status">
                             <field name="is_isp_subscriber"/>
+                        </group>
+                    </group>
+                    <group invisible="not is_isp_subscriber">
+                        <group string="Subscription Profile">
                             <field name="service_status" widget="badge" 
                                    decoration-success="service_status == 'active'" 
                                    decoration-warning="service_status == 'isolated'" 

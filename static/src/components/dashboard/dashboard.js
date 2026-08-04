@@ -12,9 +12,12 @@ export class ISPBillingDashboard extends Component {
         this.notification = useService("notification");
         this.action = useService("action");
 
+        this.interfaceHistory = {}; // Stores rolling 15-point traffic history per interface
+
         this.state = useState({
             loading: true,
             cronRunning: false,
+            chartToggles: {}, // Map of interface key -> boolean (true to show chart)
             data: {
                 total_subscribers: 0,
                 active_subscribers: 0,
@@ -71,12 +74,54 @@ export class ISPBillingDashboard extends Component {
                     subscriber_traffics: res.subscriber_traffics || [],
                     recent_logs: res.recent_logs || [],
                 };
+
+                // Update rolling interface history
+                (res.traffic_interfaces || []).forEach(iface => {
+                    const key = iface.router_name + '_' + iface.name;
+                    if (!this.interfaceHistory[key]) {
+                        this.interfaceHistory[key] = [];
+                    }
+                    this.interfaceHistory[key].push({
+                        rx: iface.rx_bps || 0,
+                        tx: iface.tx_bps || 0,
+                        time: new Date().toLocaleTimeString()
+                    });
+                    if (this.interfaceHistory[key].length > 15) {
+                        this.interfaceHistory[key].shift();
+                    }
+                });
             }
         } catch (error) {
             console.error("Failed to load ISP Dashboard Data", error);
         } finally {
             this.state.loading = false;
         }
+    }
+
+    toggleInterfaceChart(ifaceKey) {
+        this.state.chartToggles[ifaceKey] = !this.state.chartToggles[ifaceKey];
+    }
+
+    isChartEnabled(ifaceKey) {
+        return !!this.state.chartToggles[ifaceKey];
+    }
+
+    getSparklinePoints(ifaceKey, type = 'rx') {
+        const history = this.interfaceHistory[ifaceKey] || [];
+        if (history.length < 2) return "0,35 150,35";
+        
+        const values = history.map(h => type === 'rx' ? h.rx : h.tx);
+        const maxVal = Math.max(...values, 1000);
+        const width = 200;
+        const height = 40;
+        
+        const points = values.map((val, idx) => {
+            const x = (idx / (history.length - 1)) * width;
+            const y = height - ((val / maxVal) * (height - 5));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+        
+        return points.join(" ");
     }
 
     formatIDR(val) {

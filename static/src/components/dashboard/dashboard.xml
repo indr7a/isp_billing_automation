@@ -11,7 +11,7 @@
                         </div>
                         <h2 class="fw-bold mb-1">ISP Billing &amp; MikroTik Control Center</h2>
                         <p class="text-white-50 mb-0 small">
-                            Monitoring traffic real-time pelanggan aktif, otomatisasi pemblokiran tagihan, dan pengiriman notifikasi WhatsApp.
+                            Monitoring traffic real-time pelanggan aktif, grafik histori interface, otomatisasi pemblokiran tagihan, dan pengiriman notifikasi WhatsApp.
                         </p>
                     </div>
                     <div class="d-flex gap-2">
@@ -102,12 +102,12 @@
                     </div>
                 </div>
 
-                <!-- Compact Interface Traffic Row -->
+                <!-- Interface Traffic Cards with History Chart Toggle -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-3">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                             <h6 class="fw-bold text-dark mb-0">
-                                <i class="fa fa-server text-info me-2"></i>Status Traffic &amp; Bandwidth Interface MikroTik
+                                <i class="fa fa-line-chart text-info me-2"></i>Status Traffic &amp; Grafik Histori Interface MikroTik
                             </h6>
                             <span class="badge bg-success text-white font-monospace">Live (3s)</span>
                         </div>
@@ -117,11 +117,20 @@
                             </div>
                             <div t-else="" class="row g-2">
                                 <div t-foreach="state.data.traffic_interfaces" t-as="iface" t-key="iface.router_name + '_' + iface.name" class="col-12 col-sm-6 col-md-4 col-xl-3">
+                                    <t t-set="ifaceKey" t-value="iface.router_name + '_' + iface.name"/>
                                     <div class="p-2 border rounded bg-light">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <div class="fw-bold small text-dark" t-out="iface.name"/>
-                                            <span t-if="iface.running" class="badge bg-success" style="font-size: 10px;">UP</span>
-                                            <span t-else="" class="badge bg-secondary" style="font-size: 10px;">DOWN</span>
+                                            <div class="d-flex gap-1 align-items-center">
+                                                <button t-on-click="() => this.toggleInterfaceChart(ifaceKey)" 
+                                                        t-attf-class="btn btn-xs #{isChartEnabled(ifaceKey) ? 'btn-info text-white' : 'btn-outline-secondary'}"
+                                                        style="padding: 1px 5px; font-size: 10px;"
+                                                        title="Toggle Grafik Histori">
+                                                    <i class="fa fa-line-chart"></i>
+                                                </button>
+                                                <span t-if="iface.running" class="badge bg-success" style="font-size: 10px;">UP</span>
+                                                <span t-else="" class="badge bg-secondary" style="font-size: 10px;">DOWN</span>
+                                            </div>
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center" style="font-size: 11px;">
                                             <span class="text-success font-monospace">
@@ -134,6 +143,20 @@
                                         <div class="text-end text-muted mt-1" style="font-size: 10px;">
                                             Total: <t t-out="formatBytes(iface.rx_bytes + iface.tx_bytes)"/>
                                         </div>
+
+                                        <!-- Inline Sparkline History Chart (Toggled) -->
+                                        <div t-if="isChartEnabled(ifaceKey)" class="mt-2 pt-2 border-top">
+                                            <div class="d-flex justify-content-between text-muted" style="font-size: 9px;">
+                                                <span class="text-success">■ RX (Download)</span>
+                                                <span class="text-primary">■ TX (Upload)</span>
+                                            </div>
+                                            <svg width="100%" height="40" viewBox="0 0 200 40" class="mt-1" style="background: #ffffff; border-radius: 4px;">
+                                                <!-- RX Line (Green) -->
+                                                <polyline fill="none" stroke="#198754" stroke-width="2" t-att-points="getSparklinePoints(ifaceKey, 'rx')"/>
+                                                <!-- TX Line (Blue) -->
+                                                <polyline fill="none" stroke="#0d6efd" stroke-width="2" stroke-dasharray="3,3" t-att-points="getSparklinePoints(ifaceKey, 'tx')"/>
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -141,7 +164,7 @@
                     </div>
                 </div>
 
-                <!-- Active Subscriber Traffic Section (With Live Rate & Total RX/TX Bytes) -->
+                <!-- Active Subscriber Traffic Section -->
                 <div class="col-12 col-lg-8">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
@@ -171,7 +194,10 @@
                                     <tbody>
                                         <tr t-foreach="state.data.subscriber_traffics" t-as="sub" t-key="sub.name + '_' + sub.queue_name">
                                             <td>
-                                                <div class="fw-bold text-dark" t-out="sub.name"/>
+                                                <div class="fw-bold text-dark d-flex align-items-center gap-1">
+                                                    <t t-out="sub.name"/>
+                                                    <span t-if="!sub.is_registered" class="badge bg-light text-muted border font-monospace" style="font-size: 9px;" title="Belum terdaftar sebagai kontak di Odoo">Unregistered Queue</span>
+                                                </div>
                                                 <div class="text-muted font-monospace" style="font-size: 11px;">
                                                     <i class="fa fa-align-left me-1"></i><t t-out="sub.queue_name"/>
                                                 </div>
