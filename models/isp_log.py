@@ -8,6 +8,7 @@ class ISPLog(models.Model):
 
     name = fields.Char(string="Title", compute="_compute_name", store=True)
     timestamp = fields.Datetime(string="Timestamp", default=fields.Datetime.now, required=True, index=True)
+    company_id = fields.Many2one('res.company', string="Company", default=lambda self: self.env.company, index=True)
     source = fields.Selection([
         ('mikrotik', 'MikroTik Router'),
         ('whatsapp', 'WhatsApp Gateway'),

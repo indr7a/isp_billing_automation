@@ -10,14 +10,19 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (Integrated with subscription_package & account.move)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (Multi-Company Filtered)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
         Log = self.env['isp.log']
 
-        # Subscribers metrics from Odoo res.partner
-        subscribers = Partner.search([('is_isp_subscriber', '=', True)])
+        active_company_ids = self.env.companies.ids
+
+        # Subscribers metrics from Odoo res.partner filtered by active companies
+        subscribers = Partner.search([
+            ('is_isp_subscriber', '=', True),
+            '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
+        ])
         total_subscribers = len(subscribers)
         mrr = sum(subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
 
@@ -26,6 +31,7 @@ class ISPDashboardService(models.AbstractModel):
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
             ('payment_state', 'not in', ['paid', 'in_payment', 'reversed']),
+            '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
         ]
         
         # Add support for subscription_package module safely
@@ -41,8 +47,11 @@ class ISPDashboardService(models.AbstractModel):
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
 
-        # Routers metrics
-        routers = Router.search([('active', '=', True)])
+        # Routers metrics filtered by active companies
+        routers = Router.search([
+            ('active', '=', True),
+            '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
+        ])
         total_routers = len(routers)
         connected_routers = len(routers.filtered(lambda r: r.status == 'connected'))
 
@@ -236,7 +245,9 @@ class ISPDashboardService(models.AbstractModel):
 
         subscriber_traffics.sort(key=lambda x: x['rx_bps'] + x['tx_bps'], reverse=True)
 
-        recent_logs_records = Log.search([], limit=5, order='timestamp desc, id desc')
+        recent_logs_records = Log.search([
+            '|', ('company_id', '=', False), ('company_id', 'in', active_company_ids)
+        ], limit=5, order='timestamp desc, id desc')
         recent_logs = [{
             'id': log.id,
             'timestamp': fields.Datetime.to_string(log.timestamp),
@@ -268,6 +279,7 @@ class ISPDashboardService(models.AbstractModel):
         self.env['isp.log'].create({
             'source': 'system',
             'level': 'info',
+            'company_id': self.env.company.id,
             'message': 'Pengecekan Billing & Isolir Otomatis dijalankan secara manual dari Dashboard',
             'details': 'Manual trigger via OWL Dashboard Action Button'
         })

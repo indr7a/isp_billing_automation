@@ -22,6 +22,7 @@ class MikrotikRouter(models.Model):
     password = fields.Char(string="Password API", required=True)
     port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel API misal 682)")
     active = fields.Boolean(string="Active", default=True)
+    company_id = fields.Many2one('res.company', string="Company", required=True, default=lambda self: self.env.company, index=True)
     
     status = fields.Selection([
         ('draft', 'Not Tested'),
@@ -79,6 +80,7 @@ class MikrotikRouter(models.Model):
             self.env['isp.log'].create({
                 'source': 'mikrotik',
                 'level': 'success',
+                'company_id': router.company_id.id,
                 'message': f"Test koneksi berhasil ke MikroTik {router.name}",
                 'details': f"Host/Tunnel: {router.host}:{router.port}"
             })
@@ -113,8 +115,9 @@ class MikrotikRouter(models.Model):
                     if not q_name:
                         continue
 
-                    # Search existing partner by Simple Queue Name or IP Address or Name
-                    domain = ['|', '|',
+                    # Search existing partner by Simple Queue Name or IP Address or Name within same company or no company
+                    domain = ['|', ('company_id', '=', False), ('company_id', '=', router.company_id.id),
+                        '|', '|',
                         ('simple_queue_name', '=', q_name),
                         ('ip_address', '=', clean_ip),
                         ('name', '=', q_name)
@@ -125,6 +128,7 @@ class MikrotikRouter(models.Model):
                         'is_isp_subscriber': True,
                         'connection_type': 'static',
                         'mikrotik_id': router.id,
+                        'company_id': router.company_id.id,
                         'simple_queue_name': q_name,
                         'ip_address': clean_ip or (partner.ip_address if partner else False),
                     }
@@ -142,6 +146,7 @@ class MikrotikRouter(models.Model):
                 self.env['isp.log'].create({
                     'source': 'mikrotik',
                     'level': 'success',
+                    'company_id': router.company_id.id,
                     'message': f"Sinkronisasi Simple Queue MikroTik '{router.name}' berhasil",
                     'details': f"Dibuat: {created_count} pelanggan baru, Diperbarui: {updated_count} pelanggan"
                 })
@@ -240,6 +245,7 @@ class MikrotikRouter(models.Model):
             self.env['isp.log'].create({
                 'source': 'mikrotik',
                 'level': 'success',
+                'company_id': self.company_id.id,
                 'message': f"Push/Sync Pelanggan '{partner.name}' ke MikroTik {self.name} Berhasil",
                 'details': f"Mode: {conntype.upper()} | Status: {partner.service_status}"
             })
@@ -296,6 +302,7 @@ class MikrotikRouter(models.Model):
                 self.env['isp.log'].create({
                     'source': 'mikrotik',
                     'level': 'success' if status else 'warning',
+                    'company_id': self.company_id.id,
                     'message': f"Status Static IP Pelanggan '{partner.name}' ({ip or queue_name}) diubah menjadi {'AKTIF' if status else 'ISOLIR'}",
                     'details': f"Router: {self.name} ({self.host}:{self.port}) | Mode: Static IP"
                 })
@@ -324,6 +331,7 @@ class MikrotikRouter(models.Model):
                     self.env['isp.log'].create({
                         'source': 'mikrotik',
                         'level': 'success' if status else 'warning',
+                        'company_id': self.company_id.id,
                         'message': f"Status PPPoE User '{ppp_username}' diubah menjadi {'AKTIF' if status else 'ISOLIR'}",
                         'details': f"Router: {self.name} ({self.host}:{self.port}) | Mode: PPPoE"
                     })
@@ -335,6 +343,7 @@ class MikrotikRouter(models.Model):
             self.env['isp.log'].create({
                 'source': 'mikrotik',
                 'level': 'error',
+                'company_id': self.company_id.id,
                 'message': f"Gagal memperbarui status MikroTik untuk '{partner.name}'",
                 'details': str(e)
             })

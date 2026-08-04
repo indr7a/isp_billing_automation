@@ -10,6 +10,7 @@
                 <field name="host"/>
                 <field name="port"/>
                 <field name="username"/>
+                <field name="company_id" groups="base.group_multi_company"/>
                 <field name="status" widget="badge" decoration-success="status == 'connected'" decoration-danger="status == 'error'"/>
                 <field name="last_sync"/>
                 <field name="active" widget="boolean_toggle"/>
@@ -41,6 +42,7 @@
                             <field name="port"/>
                             <field name="username"/>
                             <field name="password" password="True"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
                             <field name="active"/>
                         </group>
                         <group string="Status &amp; Monitoring">
