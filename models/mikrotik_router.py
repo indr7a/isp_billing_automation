@@ -161,6 +161,94 @@ class MikrotikRouter(models.Model):
                 _logger.error(f"Error syncing simple queues: {str(e)}")
                 raise UserError(f"Gagal melakukan sinkronisasi Simple Queue: {str(e)}")
 
+    def push_subscriber_to_mikrotik(self, partner):
+        """
+        Creates or updates configuration on MikroTik when adding/editing a subscriber in Odoo.
+        - Static IP Mode: Creates/Updates /queue/simple (name, target IP, disabled)
+        - PPPoE Mode: Creates/Updates /ppp/secret (name, password, profile, service=pppoe, disabled)
+        """
+        self.ensure_one()
+        if not partner or not partner.is_isp_subscriber:
+            return False
+
+        conntype = partner.connection_type or 'static'
+        connection, api_conn = self.get_connection()
+        try:
+            is_active = partner.service_status == 'active'
+            disabled_str = 'no' if is_active else 'yes'
+
+            if conntype == 'static':
+                ip = partner.ip_address
+                queue_name = partner.simple_queue_name or partner.name
+                if not ip and not queue_name:
+                    connection.disconnect()
+                    raise UserError("IP Address atau Simple Queue Name harus diisi untuk mode Static IP.")
+
+                target_ip = f"{ip}/32" if ip and '/' not in ip else (ip or "")
+                queue_resource = api_conn.get_resource('/queue/simple')
+                existing = queue_resource.get(name=queue_name)
+
+                if existing:
+                    queue_id = existing[0]['id']
+                    update_vals = {'disabled': disabled_str}
+                    if target_ip:
+                        update_vals['target'] = target_ip
+                    queue_resource.set(id=queue_id, **update_vals)
+                    _logger.info(f"Updated Simple Queue '{queue_name}' on MikroTik {self.name}")
+                else:
+                    create_vals = {
+                        'name': queue_name,
+                        'target': target_ip or "0.0.0.0/0",
+                        'disabled': disabled_str,
+                        'comment': f"Created by Odoo: {partner.name}"
+                    }
+                    queue_resource.add(**create_vals)
+                    _logger.info(f"Created new Simple Queue '{queue_name}' on MikroTik {self.name}")
+
+                if not partner.simple_queue_name:
+                    partner.simple_queue_name = queue_name
+
+            elif conntype == 'pppoe':
+                ppp_user = partner.ppp_username
+                if not ppp_user:
+                    connection.disconnect()
+                    raise UserError("PPP Username harus diisi untuk mode PPPoE.")
+
+                ppp_resource = api_conn.get_resource('/ppp/secret')
+                existing = ppp_resource.get(name=ppp_user)
+                
+                profile_name = partner.isp_package_id.name if partner.isp_package_id else 'default'
+
+                if existing:
+                    user_id = existing[0]['id']
+                    update_vals = {'disabled': disabled_str}
+                    if partner.ppp_password:
+                        update_vals['password'] = partner.ppp_password
+                    ppp_resource.set(id=user_id, **update_vals)
+                else:
+                    create_vals = {
+                        'name': ppp_user,
+                        'password': partner.ppp_password or '123456',
+                        'service': 'pppoe',
+                        'profile': profile_name,
+                        'disabled': disabled_str,
+                        'comment': f"Created by Odoo: {partner.name}"
+                    }
+                    ppp_resource.add(**create_vals)
+
+            connection.disconnect()
+            self.env['isp.log'].create({
+                'source': 'mikrotik',
+                'level': 'success',
+                'message': f"Push/Sync Pelanggan '{partner.name}' ke MikroTik {self.name} Berhasil",
+                'details': f"Mode: {conntype.upper()} | Status: {partner.service_status}"
+            })
+            return True
+        except Exception as e:
+            connection.disconnect()
+            _logger.error(f"Failed to push subscriber {partner.name} to MikroTik: {str(e)}")
+            raise UserError(f"Gagal Push ke MikroTik: {str(e)}")
+
     def set_subscriber_status(self, partner, status):
         """
         status: True for Enable (Un-isolir), False for Disable (Isolir)

@@ -18,6 +18,7 @@ class ResPartner(models.Model):
     ip_address = fields.Char(string="Static IP Address", help="IP Address Pelanggan (misal: 192.168.10.50)")
     simple_queue_name = fields.Char(string="Simple Queue Name", help="Nama Simple Queue di MikroTik")
     ppp_username = fields.Char(string="PPP Username", index=True, help="Username PPPoE jika menggunakan mode PPPoE")
+    ppp_password = fields.Char(string="PPP Password", help="Password untuk akun PPPoE pelanggan di MikroTik")
 
     mikrotik_id = fields.Many2one('isp.mikrotik.router', string="Assigned MikroTik Router")
     service_status = fields.Selection([
@@ -36,6 +37,27 @@ class ResPartner(models.Model):
         if self.isp_package_id:
             self.monthly_fee = self.isp_package_id.lst_price
 
+    def action_sync_to_mikrotik(self):
+        """Creates or updates subscriber config directly on MikroTik from Odoo"""
+        for partner in self:
+            if not partner.is_isp_subscriber:
+                raise UserError("Kontak ini bukan merupakan Pelanggan ISP.")
+            if not partner.mikrotik_id:
+                raise UserError("Silakan pilih Router MikroTik terlebih dahulu.")
+            
+            partner.mikrotik_id.push_subscriber_to_mikrotik(partner)
+            
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sync MikroTik Berhasil',
+                    'message': f"Konfigurasi pelanggan '{partner.name}' telah berhasil di-push / dibuat di Router MikroTik {partner.mikrotik_id.name}!",
+                    'sticky': False,
+                    'type': 'success'
+                }
+            }
+
     def send_wa_notification(self, message):
         """Sends WhatsApp message via fs_whatsapp_connector (whatsapp.account) or fallback HTTP Gateway"""
         self.ensure_one()
@@ -53,7 +75,6 @@ class ResPartner(models.Model):
             try:
                 wa_account = self.env['whatsapp.account'].sudo().get_active_account()
                 if wa_account:
-                    # Attempt send message via whatsapp.account api_post
                     payload = {
                         'phone': phone,
                         'message': message
