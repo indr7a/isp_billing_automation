@@ -10,7 +10,7 @@ class ISPDashboardService(models.AbstractModel):
 
     @api.model
     def get_dashboard_data(self):
-        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (with Filtered Subscriber Traffic & Topology Data)"""
+        """Returns aggregated metrics for the Odoo 17 OWL Dashboard (Integrated with subscription_package & account.move)"""
         Partner = self.env['res.partner']
         Move = self.env['account.move']
         Router = self.env['isp.mikrotik.router']
@@ -21,13 +21,20 @@ class ISPDashboardService(models.AbstractModel):
         total_subscribers = len(subscribers)
         mrr = sum(subscribers.filtered(lambda s: s.service_status == 'active').mapped('monthly_fee'))
 
-        # Invoices metrics - Integrated with Odoo account.move for ISP Subscribers
-        unpaid_invoices = Move.search([
+        # Invoices metrics - Integrated with subscription_package & Odoo account.move for ISP Subscribers
+        unpaid_domain = [
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
             ('payment_state', 'not in', ['paid', 'in_payment', 'reversed']),
-            '|', ('is_isp_invoice', '=', True), ('partner_id.is_isp_subscriber', '=', True)
-        ])
+        ]
+        
+        # Add support for subscription_package module if present
+        if 'is_subscription' in Move._fields:
+            unpaid_domain.extend(['|', '|', ('is_isp_invoice', '=', True), ('is_subscription', '=', True), ('partner_id.is_isp_subscriber', '=', True)])
+        else:
+            unpaid_domain.extend(['|', ('is_isp_invoice', '=', True), ('partner_id.is_isp_subscriber', '=', True)])
+
+        unpaid_invoices = Move.search(unpaid_domain)
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
 
@@ -45,7 +52,6 @@ class ISPDashboardService(models.AbstractModel):
         topology_links = []
 
         for router in routers.filtered(lambda r: r.status == 'connected'):
-            # Add Main Router Node
             router_node_id = f"router_{router.id}"
             topology_nodes.append({
                 'id': router_node_id,
