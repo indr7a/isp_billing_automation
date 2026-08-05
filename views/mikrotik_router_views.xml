@@ -10,6 +10,7 @@
                 <field name="host"/>
                 <field name="port"/>
                 <field name="username"/>
+                <field name="isolir_address_list"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="status" widget="badge" decoration-success="status == 'connected'" decoration-danger="status == 'error'"/>
                 <field name="last_sync"/>
@@ -45,7 +46,8 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="active"/>
                         </group>
-                        <group string="Status &amp; Monitoring">
+                        <group string="Firewall &amp; System Settings">
+                            <field name="isolir_address_list" placeholder="e.g. ISOLIR"/>
                             <field name="last_sync"/>
                         </group>
                     </group>
