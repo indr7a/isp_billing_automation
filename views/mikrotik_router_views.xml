@@ -7,11 +7,9 @@
         <field name="arch" type="xml">
             <tree string="MikroTik Routers">
                 <field name="name"/>
-                <field name="host"/>
-                <field name="port"/>
-                <field name="username"/>
                 <field name="use_wireguard" widget="boolean_toggle"/>
                 <field name="wg_client_ip"/>
+                <field name="username"/>
                 <field name="isolir_address_list"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="status" widget="badge" decoration-success="status == 'connected'" decoration-danger="status == 'error'"/>
@@ -42,18 +40,18 @@
                     </div>
                     <group>
                         <group string="Connection Details">
-                            <field name="host"/>
-                            <field name="port"/>
+                            <field name="use_wireguard" widget="boolean_toggle"/>
+                            <field name="wg_client_ip" invisible="not use_wireguard" readonly="1" class="fw-bold text-primary"/>
+                            <field name="host" invisible="use_wireguard" placeholder="e.g. id-4.tunnel.id"/>
+                            <field name="port" invisible="use_wireguard"/>
                             <field name="username"/>
                             <field name="password" password="True"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="active"/>
                         </group>
-                        <group string="WireGuard VPN &amp; Firewall">
-                            <field name="use_wireguard" widget="boolean_toggle"/>
-                            <field name="wg_client_ip" invisible="not use_wireguard"/>
-                            <button name="action_generate_wireguard_keys" string="Generate Kunci WireGuard &amp; IP" type="object" class="btn-sm btn-outline-primary mb-2" icon="fa-key" invisible="not use_wireguard"/>
+                        <group string="Firewall &amp; System Settings">
                             <field name="isolir_address_list" placeholder="e.g. ISOLIR"/>
+                            <button name="action_generate_wireguard_keys" string="Generate Kunci WireGuard &amp; IP Baru" type="object" class="btn-sm btn-outline-primary mb-2" icon="fa-key" invisible="not use_wireguard"/>
                             <field name="last_sync"/>
                         </group>
                     </group>

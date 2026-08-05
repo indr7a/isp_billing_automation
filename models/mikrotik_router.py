@@ -20,7 +20,7 @@ class MikrotikRouter(models.Model):
     _description = 'MikroTik Router Configuration'
 
     name = fields.Char(string="Router Name", required=True)
-    host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau IP VPN WireGuard (misal: 172.28.0.2 atau id-4.tunnel.id)")
+    host = fields.Char(string="IP/Host/Tunnel Domain", required=True, default="172.28.0.2", help="IP Address, Domain, atau IP VPN WireGuard (misal: 172.28.0.2 atau id-4.tunnel.id)")
     username = fields.Char(string="Username API", required=True, default="admin")
     password = fields.Char(string="Password API", required=True)
     port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel API misal 682)")
@@ -35,8 +35,8 @@ class MikrotikRouter(models.Model):
     )
 
     use_wireguard = fields.Boolean(
-        string="Gunakan WireGuard VPN Internal", 
-        default=False, 
+        string="Gunakan WireGuard VPN Internal (Rekomendasi / Bebas Biaya)", 
+        default=True, 
         help="Aktifkan jika ingin terhubung langsung ke Server VPS Odoo via VPN WireGuard tanpa perlu VPN Remote Pihak Ke-3."
     )
     wg_client_ip = fields.Char(string="IP WireGuard Router", help="Alokasi IP internal VPN WireGuard untuk router ini (misal: 172.28.0.2)")
@@ -72,7 +72,7 @@ class MikrotikRouter(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            if vals.get('use_wireguard'):
+            if vals.get('use_wireguard', True):
                 if not vals.get('wg_client_ip'):
                     vals['wg_client_ip'] = self._get_next_wireguard_ip()
                 if not vals.get('wg_client_private_key'):
