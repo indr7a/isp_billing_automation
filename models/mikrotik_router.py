@@ -38,6 +38,65 @@ class MikrotikRouter(models.Model):
     ], string="Status", default='draft', readonly=True)
     last_sync = fields.Datetime(string="Last Sync Date", readonly=True)
 
+    auto_setup_script = fields.Text(
+        string="Auto-Setup Script MikroTik", 
+        compute="_compute_auto_setup_script",
+        store=False,
+        help="Skrip otomatisasi MikroTik RouterOS v6/v7 untuk mengonfigurasi user API, service port, dan firewall isolir."
+    )
+
+    @api.depends('name', 'username', 'password', 'port', 'isolir_address_list')
+    def _compute_auto_setup_script(self):
+        for router in self:
+            u_name = router.username or 'admin'
+            u_pass = router.password or ''
+            a_port = router.port or 8728
+            list_name = router.isolir_address_list or 'ISOLIR'
+            
+            script_content = f"""# ═══════════ Odoo ISPBilling — Auto-Setup MikroTik (RouterOS v6/v7) ═══════════
+# Tempel SELURUH skrip ini di terminal MikroTik. IDEMPOTEN — aman diulang tanpa merusak konfigurasi existing.
+
+# 0) Bersihkan konfigurasi OdooISPBilling lama jika ada (idempoten)
+/user/remove [find comment="OdooISPBilling"]
+/ip/firewall/filter/remove [find comment="OdooISPBilling"]
+/ip/firewall/nat/remove [find comment="OdooISPBilling"]
+
+# 1) Konfigurasi User Dedicated API Odoo
+/user/add name="{u_name}" password="{u_pass}" group=full comment="OdooISPBilling"
+
+# 2) Pastikan Service API MikroTik Aktif di Port {a_port}
+/ip/service/set api disabled=no port={a_port}
+
+# 3) Konfigurasi Aturan Firewall Isolir Otomatis (Address List: {list_name})
+# A. Filter Rule: Blokir Akses Internet Pelanggan Terisolir
+/ip/firewall/filter/add chain=forward src-address-list={list_name} action=drop comment="OdooISPBilling - Blokir Internet Pelanggan Isolir" place-before=0
+
+# B. NAT Rule (Opsional): Redirect Web HTTP Pelanggan Isolir ke Halaman Peringatan Tagihan
+# /ip/firewall/nat/add chain=dstnat src-address-list={list_name} protocol=tcp dst-port=80 action=redirect to-ports=8080 comment="OdooISPBilling - Redirect Halaman Isolir"
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# Selesai! Cek di MikroTik Terminal:
+# /user print where comment="OdooISPBilling"
+# /ip service print where name="api"
+#
+# Selanjutnya: Buka Odoo Panel -> Tekan tombol [Test Connection] & [Sync Simple Queues].
+# Pelanggan akan otomatis dikelola, di-isolir, dan di-unisolir dari Odoo secara real-time!
+# ══════════════════════════════════════════════════════════════════════════════════"""
+            router.auto_setup_script = script_content
+
+    def action_generate_setup_script(self):
+        """Action wizard pop-up display for Auto Setup Script"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': f'Auto-Setup Script — {self.name}',
+            'res_model': 'isp.mikrotik.router',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_auto_setup_script': self.auto_setup_script}
+        }
+
     def get_connection(self):
         """Creates RouterOS API Connection with fallback authentication support"""
         self.ensure_one()

@@ -28,6 +28,7 @@
                 <header>
                     <button name="action_test_connection" string="Test Connection" type="object" class="btn-primary" icon="fa-wifi"/>
                     <button name="action_sync_simple_queues" string="Sync Simple Queues" type="object" class="btn-secondary" icon="fa-refresh" help="Impor / Sinkronkan seluruh data pelanggan dari Simple Queue MikroTik ke Odoo"/>
+                    <button name="action_generate_setup_script" string="Auto-Setup Script (Terminal)" type="object" class="btn-info" icon="fa-code" help="Lihat / Copy skrip terminal MikroTik otomatis"/>
                     <field name="status" widget="statusbar" statusbar_visible="connected,error"/>
                 </header>
                 <sheet>
@@ -51,6 +52,23 @@
                             <field name="last_sync"/>
                         </group>
                     </group>
+
+                    <notebook>
+                        <page string="Auto-Setup Script Terminal MikroTik" name="setup_script">
+                            <div class="alert alert-info" role="alert">
+                                <strong><i class="fa fa-info-circle me-1"></i>Petunjuk Penggunaan:</strong>
+                                Salin (Copy) seluruh skrip di bawah ini dan tempelkan (Paste) langsung ke <strong>Terminal MikroTik</strong> (Winbox / SSH). Skrip ini bersifat <strong>Idempoten</strong> (aman diulang).
+                                <br/><br/>
+                                <strong>Setelah Tempel Skrip, Lakukan Pengecekan:</strong>
+                                <ol class="mb-0 mt-1">
+                                    <li>Buka Odoo Panel ➔ Tekan tombol <strong>[Test Connection]</strong> di atas. Pastikan status berubah menjadi <span class="badge bg-success">Connected</span>.</li>
+                                    <li>Tekan tombol <strong>[Sync Simple Queues]</strong> untuk mengimpor seluruh pelanggan yang ada dari MikroTik.</li>
+                                    <li>Pelanggan baru &amp; tagihan di Odoo kini otomatis terintegrasi real-time!</li>
+                                </ol>
+                            </div>
+                            <field name="auto_setup_script" widget="ace" options="{'mode': 'sh'}" readonly="1" class="font-monospace"/>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
