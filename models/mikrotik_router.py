@@ -259,12 +259,15 @@ class MikrotikRouter(models.Model):
         """
         status: True for Enable (Un-isolir), False for Disable (Isolir)
         Supports both Static IP (Address List & Simple Queue) and PPPoE Secret.
+        Adds IP to BOTH 'ISOLIR' and 'ISOLIR_LIST' address lists to match any MikroTik Firewall Rule configuration!
         """
         self.ensure_one()
         if not partner:
             return False
 
         conntype = partner.connection_type or 'static'
+        target_address_lists = ['ISOLIR', 'ISOLIR_LIST']
+
         try:
             connection, api_conn = self.get_connection()
 
@@ -277,18 +280,19 @@ class MikrotikRouter(models.Model):
                     connection.disconnect()
                     return False
 
-                # 1. Manage Firewall Address List (ISOLIR_LIST)
+                # 1. Manage Firewall Address Lists (Both 'ISOLIR' and 'ISOLIR_LIST')
                 if ip:
                     addr_resource = api_conn.get_resource('/ip/firewall/address-list')
-                    existing = addr_resource.get(address=ip, list='ISOLIR_LIST')
-                    if not status: # Isolir -> Add IP to ISOLIR_LIST
-                        if not existing:
-                            addr_resource.add(address=ip, list='ISOLIR_LIST', comment=f"Isolir Odoo: {partner.name}")
-                            _logger.info(f"Added IP {ip} ({partner.name}) to MikroTik ISOLIR_LIST")
-                    else: # Un-isolir -> Remove IP from ISOLIR_LIST
-                        for ex in existing:
-                            addr_resource.remove(id=ex['id'])
-                            _logger.info(f"Removed IP {ip} ({partner.name}) from MikroTik ISOLIR_LIST")
+                    for list_name in target_address_lists:
+                        existing = addr_resource.get(address=ip, list=list_name)
+                        if not status: # Isolir -> Add IP to Address List
+                            if not existing:
+                                addr_resource.add(address=ip, list=list_name, comment=f"Isolir Odoo: {partner.name}")
+                                _logger.info(f"Added IP {ip} ({partner.name}) to MikroTik {list_name}")
+                        else: # Un-isolir -> Remove IP from Address List
+                            for ex in existing:
+                                addr_resource.remove(id=ex['id'])
+                                _logger.info(f"Removed IP {ip} ({partner.name}) from MikroTik {list_name}")
 
                 # 2. Manage Simple Queue (Disable / Enable)
                 if queue_name:
@@ -304,7 +308,7 @@ class MikrotikRouter(models.Model):
                     'level': 'success' if status else 'warning',
                     'company_id': self.company_id.id,
                     'message': f"Status Static IP Pelanggan '{partner.name}' ({ip or queue_name}) diubah menjadi {'AKTIF' if status else 'ISOLIR'}",
-                    'details': f"Router: {self.name} ({self.host}:{self.port}) | Mode: Static IP"
+                    'details': f"Router: {self.name} ({self.host}:{self.port}) | Mode: Static IP | Address Lists: {', '.join(target_address_lists)}"
                 })
 
             elif conntype == 'pppoe':
