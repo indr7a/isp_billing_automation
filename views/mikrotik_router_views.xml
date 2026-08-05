@@ -75,7 +75,7 @@
                                 <br/><br/>
                                 <strong>Setelah Tempel Skrip, Lakukan Pengecekan:</strong>
                                 <ol class="mb-0 mt-1">
-                                    <li t-if="connection_mode == 'wireguard'">Jalankan di Terminal MikroTik: <code>/ping 172.28.0.1 count=3</code> (Harus REPLY).</li>
+                                    <li>Jika menggunakan WireGuard, jalankan di Terminal MikroTik: <code>/ping 172.28.0.1 count=3</code> (Harus REPLY).</li>
                                     <li>Buka Odoo Panel ➔ Tekan tombol <strong>[Test Connection]</strong> di atas. Pastikan status berubah menjadi <span class="badge bg-success">Connected</span>.</li>
                                     <li>Tekan tombol <strong>[Sync Simple Queues]</strong> untuk mengimpor seluruh pelanggan yang ada dari MikroTik.</li>
                                     <li>Pelanggan baru &amp; tagihan di Odoo kini otomatis terintegrasi real-time!</li>
