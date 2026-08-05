@@ -20,7 +20,7 @@ class MikrotikRouter(models.Model):
     _description = 'MikroTik Router Configuration'
 
     name = fields.Char(string="Router Name", required=True)
-    host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau Tunnel Remote (misal: id-4.tunnel.id atau IP VPN WireGuard 172.28.0.x)")
+    host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau IP VPN WireGuard (misal: 172.28.0.2 atau id-4.tunnel.id)")
     username = fields.Char(string="Username API", required=True, default="admin")
     password = fields.Char(string="Password API", required=True)
     port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel API misal 682)")
@@ -57,16 +57,30 @@ class MikrotikRouter(models.Model):
         help="Skrip otomatisasi MikroTik RouterOS v6/v7 untuk mengonfigurasi user API, WireGuard VPN, service port, dan firewall isolir."
     )
 
+    @api.onchange('use_wireguard', 'wg_client_ip')
+    def _onchange_use_wireguard(self):
+        if self.use_wireguard:
+            if not self.wg_client_ip:
+                self.wg_client_ip = self._get_next_wireguard_ip()
+            self.host = self.wg_client_ip
+            self.port = 8728
+            if not self.wg_client_private_key:
+                priv, pub = self._generate_wireguard_keypair()
+                self.wg_client_private_key = priv
+                self.wg_client_public_key = pub
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            if vals.get('use_wireguard') and not vals.get('wg_client_ip'):
-                vals['wg_client_ip'] = self._get_next_wireguard_ip()
-                priv, pub = self._generate_wireguard_keypair()
-                vals['wg_client_private_key'] = priv
-                vals['wg_client_public_key'] = pub
-                if not vals.get('host') or vals.get('host') == '127.0.0.1':
-                    vals['host'] = vals['wg_client_ip']
+            if vals.get('use_wireguard'):
+                if not vals.get('wg_client_ip'):
+                    vals['wg_client_ip'] = self._get_next_wireguard_ip()
+                if not vals.get('wg_client_private_key'):
+                    priv, pub = self._generate_wireguard_keypair()
+                    vals['wg_client_private_key'] = priv
+                    vals['wg_client_public_key'] = pub
+                vals['host'] = vals['wg_client_ip']
+                vals['port'] = 8728
         return super(MikrotikRouter, self).create(vals_list)
 
     def write(self, vals):
@@ -78,8 +92,8 @@ class MikrotikRouter(models.Model):
                     priv, pub = self._generate_wireguard_keypair()
                     vals['wg_client_private_key'] = priv
                     vals['wg_client_public_key'] = pub
-                if vals.get('wg_client_ip') and (not router.host or router.host == '127.0.0.1'):
-                    vals['host'] = vals['wg_client_ip']
+                vals['host'] = vals.get('wg_client_ip') or router.wg_client_ip
+                vals['port'] = 8728
         return super(MikrotikRouter, self).write(vals)
 
     def action_generate_wireguard_keys(self):
@@ -92,7 +106,8 @@ class MikrotikRouter(models.Model):
                 'wg_client_private_key': priv,
                 'wg_client_public_key': pub,
                 'use_wireguard': True,
-                'host': router.wg_client_ip
+                'host': router.wg_client_ip,
+                'port': 8728
             })
         return True
 
@@ -512,7 +527,6 @@ class MikrotikRouter(models.Model):
             _logger.error(f"Error setting status for subscriber {partner.name}: {str(e)}")
             self.env['isp.log'].create({
                 'source': 'mikrotik',
-                'level': 'error',
                 'company_id': self.company_id.id,
                 'message': f"Gagal memperbarui status MikroTik untuk '{partner.name}'",
                 'details': str(e)
