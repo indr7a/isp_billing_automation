@@ -29,7 +29,7 @@
                 <header>
                     <button name="action_test_connection" string="Test Connection" type="object" class="btn-primary" icon="fa-wifi"/>
                     <button name="action_sync_simple_queues" string="Sync Simple Queues" type="object" class="btn-secondary" icon="fa-refresh" help="Impor / Sinkronkan seluruh data pelanggan dari Simple Queue MikroTik ke Odoo"/>
-                    <button name="action_generate_setup_script" string="Auto-Setup Script (Terminal)" type="object" class="btn-info" icon="fa-code" help="Lihat / Copy skrip terminal MikroTik otomatis"/>
+                    <button name="action_generate_setup_script" string="Auto-Setup Script (Terminal)" type="object" class="btn-info" icon="fa-code" invisible="connection_mode != 'wireguard'" help="Lihat / Copy skrip terminal MikroTik otomatis"/>
                     <field name="status" widget="statusbar" statusbar_visible="connected,error"/>
                 </header>
                 <sheet>
@@ -67,7 +67,7 @@
                         <field name="wg_client_private_key" password="True" class="font-monospace"/>
                     </group>
 
-                    <notebook>
+                    <notebook invisible="connection_mode != 'wireguard'">
                         <page string="Auto-Setup Script Terminal MikroTik" name="setup_script">
                             <div class="alert alert-info mb-3" role="alert">
                                 <strong><i class="fa fa-info-circle me-1"></i>Petunjuk Penggunaan:</strong>
