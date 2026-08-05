@@ -7,8 +7,9 @@
         <field name="arch" type="xml">
             <tree string="MikroTik Routers">
                 <field name="name"/>
-                <field name="use_wireguard" widget="boolean_toggle"/>
-                <field name="wg_client_ip"/>
+                <field name="connection_mode"/>
+                <field name="host"/>
+                <field name="port"/>
                 <field name="username"/>
                 <field name="isolir_address_list"/>
                 <field name="company_id" groups="base.group_multi_company"/>
@@ -38,12 +39,17 @@
                             <field name="name" placeholder="e.g. Router Core Utama"/>
                         </h1>
                     </div>
+
+                    <div class="card bg-light border p-3 mb-4 rounded-3">
+                        <label for="connection_mode" class="fw-bold mb-2 text-dark"/>
+                        <field name="connection_mode" widget="radio" class="d-flex flex-column gap-2"/>
+                    </div>
+
                     <group>
                         <group string="Connection Details">
-                            <field name="use_wireguard" widget="boolean_toggle"/>
-                            <field name="wg_client_ip" invisible="not use_wireguard" readonly="1" class="fw-bold text-primary"/>
-                            <field name="host" invisible="use_wireguard" placeholder="e.g. id-4.tunnel.id"/>
-                            <field name="port" invisible="use_wireguard"/>
+                            <field name="host" invisible="connection_mode == 'wireguard'" placeholder="e.g. id-4.tunnel.id"/>
+                            <field name="port" invisible="connection_mode == 'wireguard'"/>
+                            <field name="wg_client_ip" invisible="connection_mode != 'wireguard'" readonly="1" class="fw-bold text-primary"/>
                             <field name="username"/>
                             <field name="password" password="True"/>
                             <field name="company_id" groups="base.group_multi_company"/>
@@ -51,12 +57,12 @@
                         </group>
                         <group string="Firewall &amp; System Settings">
                             <field name="isolir_address_list" placeholder="e.g. ISOLIR"/>
-                            <button name="action_generate_wireguard_keys" string="Generate Kunci WireGuard &amp; IP Baru" type="object" class="btn-sm btn-outline-primary mb-2" icon="fa-key" invisible="not use_wireguard"/>
+                            <button name="action_generate_wireguard_keys" string="Generate Kunci WireGuard &amp; IP Baru" type="object" class="btn-sm btn-outline-primary mb-2" icon="fa-key" invisible="connection_mode != 'wireguard'"/>
                             <field name="last_sync"/>
                         </group>
                     </group>
 
-                    <group string="Detil Kunci Enkripsi WireGuard (Self-Hosted VPN)" invisible="not use_wireguard">
+                    <group string="Detil Kunci Enkripsi WireGuard (Self-Hosted VPN)" invisible="connection_mode != 'wireguard'">
                         <field name="wg_client_public_key" readonly="1" class="font-monospace"/>
                         <field name="wg_client_private_key" password="True" class="font-monospace"/>
                     </group>
@@ -69,7 +75,7 @@
                                 <br/><br/>
                                 <strong>Setelah Tempel Skrip, Lakukan Pengecekan:</strong>
                                 <ol class="mb-0 mt-1">
-                                    <li>Jalankan di Terminal MikroTik: <code>/ping 172.28.0.1 count=3</code> (Harus REPLY).</li>
+                                    <li t-if="connection_mode == 'wireguard'">Jalankan di Terminal MikroTik: <code>/ping 172.28.0.1 count=3</code> (Harus REPLY).</li>
                                     <li>Buka Odoo Panel ➔ Tekan tombol <strong>[Test Connection]</strong> di atas. Pastikan status berubah menjadi <span class="badge bg-success">Connected</span>.</li>
                                     <li>Tekan tombol <strong>[Sync Simple Queues]</strong> untuk mengimpor seluruh pelanggan yang ada dari MikroTik.</li>
                                     <li>Pelanggan baru &amp; tagihan di Odoo kini otomatis terintegrasi real-time!</li>
