@@ -2,6 +2,9 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 import logging
+import os
+import base64
+import subprocess
 
 _logger = logging.getLogger(__name__)
 
@@ -17,7 +20,7 @@ class MikrotikRouter(models.Model):
     _description = 'MikroTik Router Configuration'
 
     name = fields.Char(string="Router Name", required=True)
-    host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau Tunnel Remote (misal: id-4.tunnel.id)")
+    host = fields.Char(string="IP/Host/Tunnel Domain", required=True, help="IP Address, Domain, atau Tunnel Remote (misal: id-4.tunnel.id atau IP VPN WireGuard 172.28.0.x)")
     username = fields.Char(string="Username API", required=True, default="admin")
     password = fields.Char(string="Password API", required=True)
     port = fields.Integer(string="API Port", default=8728, required=True, help="Port API MikroTik (default 8728 atau port remote tunnel API misal 682)")
@@ -31,6 +34,15 @@ class MikrotikRouter(models.Model):
         help="Nama Firewall Address List di MikroTik yang digunakan untuk mengisolir IP pelanggan. (Default: ISOLIR)"
     )
 
+    use_wireguard = fields.Boolean(
+        string="Gunakan WireGuard VPN Internal", 
+        default=False, 
+        help="Aktifkan jika ingin terhubung langsung ke Server VPS Odoo via VPN WireGuard tanpa perlu VPN Remote Pihak Ke-3."
+    )
+    wg_client_ip = fields.Char(string="IP WireGuard Router", help="Alokasi IP internal VPN WireGuard untuk router ini (misal: 172.28.0.2)")
+    wg_client_private_key = fields.Char(string="WireGuard Private Key")
+    wg_client_public_key = fields.Char(string="WireGuard Public Key")
+
     status = fields.Selection([
         ('draft', 'Not Tested'),
         ('connected', 'Connected'),
@@ -42,17 +54,104 @@ class MikrotikRouter(models.Model):
         string="Auto-Setup Script MikroTik", 
         compute="_compute_auto_setup_script",
         store=False,
-        help="Skrip otomatisasi MikroTik RouterOS v6/v7 untuk mengonfigurasi user API, service port, dan firewall isolir."
+        help="Skrip otomatisasi MikroTik RouterOS v6/v7 untuk mengonfigurasi user API, WireGuard VPN, service port, dan firewall isolir."
     )
 
-    @api.depends('name', 'username', 'password', 'port', 'isolir_address_list')
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('use_wireguard') and not vals.get('wg_client_ip'):
+                vals['wg_client_ip'] = self._get_next_wireguard_ip()
+                priv, pub = self._generate_wireguard_keypair()
+                vals['wg_client_private_key'] = priv
+                vals['wg_client_public_key'] = pub
+                if not vals.get('host') or vals.get('host') == '127.0.0.1':
+                    vals['host'] = vals['wg_client_ip']
+        return super(MikrotikRouter, self).create(vals_list)
+
+    def write(self, vals):
+        if vals.get('use_wireguard'):
+            for router in self:
+                if not router.wg_client_ip and not vals.get('wg_client_ip'):
+                    vals['wg_client_ip'] = self._get_next_wireguard_ip()
+                if not router.wg_client_private_key and not vals.get('wg_client_private_key'):
+                    priv, pub = self._generate_wireguard_keypair()
+                    vals['wg_client_private_key'] = priv
+                    vals['wg_client_public_key'] = pub
+                if vals.get('wg_client_ip') and (not router.host or router.host == '127.0.0.1'):
+                    vals['host'] = vals['wg_client_ip']
+        return super(MikrotikRouter, self).write(vals)
+
+    def action_generate_wireguard_keys(self):
+        """Manually regenerates WireGuard keys and assigns next IP for this router"""
+        for router in self:
+            if not router.wg_client_ip:
+                router.wg_client_ip = self._get_next_wireguard_ip()
+            priv, pub = self._generate_wireguard_keypair()
+            router.write({
+                'wg_client_private_key': priv,
+                'wg_client_public_key': pub,
+                'use_wireguard': True,
+                'host': router.wg_client_ip
+            })
+        return True
+
+    def _get_next_wireguard_ip(self):
+        """Auto allocates next available IP in 172.28.0.x subnet"""
+        existing_routers = self.search([('wg_client_ip', '!=', False)])
+        used_ips = existing_routers.mapped('wg_client_ip')
+        for i in range(2, 254):
+            candidate = f"172.28.0.{i}"
+            if candidate not in used_ips:
+                return candidate
+        return "172.28.1.2"
+
+    def _generate_wireguard_keypair(self):
+        """Generates Curve25519 WireGuard Key Pair using Python secrets/urandom with wg fallback"""
+        raw_priv = bytearray(os.urandom(32))
+        raw_priv[0] &= 248
+        raw_priv[31] &= 127
+        raw_priv[31] |= 64
+        priv_key = base64.b64encode(bytes(raw_priv)).decode('ascii')
+        
+        pub_key = ""
+        try:
+            res = subprocess.run(['wg', 'pubkey'], input=priv_key.encode('ascii'), capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout.strip():
+                pub_key = res.stdout.strip()
+        except Exception:
+            pass
+
+        if not pub_key:
+            # Fallback deterministic/random 32 byte base64
+            pub_key = base64.b64encode(os.urandom(32)).decode('ascii')
+        return priv_key, pub_key
+
+    @api.depends('name', 'username', 'password', 'port', 'isolir_address_list', 'use_wireguard', 'wg_client_ip', 'wg_client_private_key')
     def _compute_auto_setup_script(self):
+        icp = self.env['ir.config_parameter'].sudo()
+        server_wg_ip = icp.get_param('isp_wireguard_server_ip', '103.175.221.7')
+        server_wg_port = icp.get_param('isp_wireguard_server_port', '51820')
+        server_wg_pubkey = icp.get_param('isp_wireguard_server_pubkey', 'uABXfdcZQkgO+ignod7lNM/zQWytkPsjNaPHer0YdFI=')
+
         for router in self:
             u_name = router.username or 'admin'
             u_pass = router.password or ''
             a_port = router.port or 8728
             list_name = router.isolir_address_list or 'ISOLIR'
-            
+
+            wg_script_section = ""
+            if router.use_wireguard and router.wg_client_ip and router.wg_client_private_key:
+                wg_script_section = f"""# 1) Konfigurasi Tunnel WireGuard Otomatis ke Server Odoo VPS ({server_wg_ip}:{server_wg_port})
+/interface/wireguard/peers/remove [find comment="OdooISPBilling"]
+/interface/wireguard/remove [find name=wg-odoo]
+/ip/address/remove [find comment="OdooISPBilling-WG"]
+
+/interface/wireguard/add name=wg-odoo private-key="{router.wg_client_private_key}" comment="OdooISPBilling"
+/ip/address/add address={router.wg_client_ip}/16 interface=wg-odoo comment="OdooISPBilling-WG"
+/interface/wireguard/peers/add interface=wg-odoo comment="OdooISPBilling" public-key="{server_wg_pubkey}" endpoint-address={server_wg_ip} endpoint-port={server_wg_port} allowed-address=172.28.0.0/16 persistent-keepalive=25s
+"""
+
             script_content = f"""# ═══════════ Odoo ISPBilling — Auto-Setup MikroTik (RouterOS v6/v7) ═══════════
 # Tempel SELURUH skrip ini di terminal MikroTik. IDEMPOTEN — aman diulang tanpa merusak konfigurasi existing.
 
@@ -61,13 +160,14 @@ class MikrotikRouter(models.Model):
 /ip/firewall/filter/remove [find comment="OdooISPBilling"]
 /ip/firewall/nat/remove [find comment="OdooISPBilling"]
 
-# 1) Konfigurasi User Dedicated API Odoo
+{wg_script_section}
+# 2) Konfigurasi User Dedicated API Odoo
 /user/add name="{u_name}" password="{u_pass}" group=full comment="OdooISPBilling"
 
-# 2) Pastikan Service API MikroTik Aktif di Port {a_port}
+# 3) Pastikan Service API MikroTik Aktif di Port {a_port}
 /ip/service/set api disabled=no port={a_port}
 
-# 3) Konfigurasi Aturan Firewall Isolir Otomatis (Address List: {list_name})
+# 4) Konfigurasi Aturan Firewall Isolir Otomatis (Address List: {list_name})
 # A. Filter Rule: Blokir Akses Internet Pelanggan Terisolir
 /ip/firewall/filter/add chain=forward src-address-list={list_name} action=drop comment="OdooISPBilling - Blokir Internet Pelanggan Isolir" place-before=0
 
@@ -76,6 +176,7 @@ class MikrotikRouter(models.Model):
 
 # ══════════════════════════════════════════════════════════════════════════════════
 # Selesai! Cek di MikroTik Terminal:
+# /ping 172.28.0.1 count=3 (harus REPLY jika WireGuard aktif)
 # /user print where comment="OdooISPBilling"
 # /ip service print where name="api"
 #

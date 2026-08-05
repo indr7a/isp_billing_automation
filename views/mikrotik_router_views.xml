@@ -10,6 +10,8 @@
                 <field name="host"/>
                 <field name="port"/>
                 <field name="username"/>
+                <field name="use_wireguard" widget="boolean_toggle"/>
+                <field name="wg_client_ip"/>
                 <field name="isolir_address_list"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="status" widget="badge" decoration-success="status == 'connected'" decoration-danger="status == 'error'"/>
@@ -47,10 +49,18 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="active"/>
                         </group>
-                        <group string="Firewall &amp; System Settings">
+                        <group string="WireGuard VPN &amp; Firewall">
+                            <field name="use_wireguard" widget="boolean_toggle"/>
+                            <field name="wg_client_ip" invisible="not use_wireguard"/>
+                            <button name="action_generate_wireguard_keys" string="Generate Kunci WireGuard &amp; IP" type="object" class="btn-sm btn-outline-primary mb-2" icon="fa-key" invisible="not use_wireguard"/>
                             <field name="isolir_address_list" placeholder="e.g. ISOLIR"/>
                             <field name="last_sync"/>
                         </group>
+                    </group>
+
+                    <group string="Detil Kunci Enkripsi WireGuard (Self-Hosted VPN)" invisible="not use_wireguard">
+                        <field name="wg_client_public_key" readonly="1" class="font-monospace"/>
+                        <field name="wg_client_private_key" password="True" class="font-monospace"/>
                     </group>
 
                     <notebook>
@@ -61,12 +71,13 @@
                                 <br/><br/>
                                 <strong>Setelah Tempel Skrip, Lakukan Pengecekan:</strong>
                                 <ol class="mb-0 mt-1">
+                                    <li>Jalankan di Terminal MikroTik: <code>/ping 172.28.0.1 count=3</code> (Harus REPLY).</li>
                                     <li>Buka Odoo Panel ➔ Tekan tombol <strong>[Test Connection]</strong> di atas. Pastikan status berubah menjadi <span class="badge bg-success">Connected</span>.</li>
                                     <li>Tekan tombol <strong>[Sync Simple Queues]</strong> untuk mengimpor seluruh pelanggan yang ada dari MikroTik.</li>
                                     <li>Pelanggan baru &amp; tagihan di Odoo kini otomatis terintegrasi real-time!</li>
                                 </ol>
                             </div>
-                            <field name="auto_setup_script" readonly="1" class="font-monospace text-success bg-dark p-3 rounded shadow-sm d-block w-100" style="white-space: pre-wrap; font-family: monospace; font-size: 12px; min-height: 250px;"/>
+                            <field name="auto_setup_script" readonly="1" class="font-monospace text-success bg-dark p-3 rounded shadow-sm d-block w-100" style="white-space: pre-wrap; font-family: monospace; font-size: 12px; min-height: 280px;"/>
                         </page>
                     </notebook>
                 </sheet>
