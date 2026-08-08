@@ -33,14 +33,10 @@ class ISPBillingPWAController(http.Controller):
             "orientation": "portrait",
             "icons": [
                 {
-                    "src": "/isp/pwa/icon.png",
-                    "sizes": "192x192",
-                    "type": "image/png"
-                },
-                {
-                    "src": "/isp/pwa/icon.png",
-                    "sizes": "512x512",
-                    "type": "image/png"
+                    "src": "/isp/pwa/icon.svg",
+                    "sizes": "192x192 512x512",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable"
                 }
             ]
         }

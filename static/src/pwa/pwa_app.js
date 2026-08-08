@@ -25,6 +25,14 @@ class ISPBillingPWA {
     }
 
     bindEvents() {
+        // Company select handler
+        const compSelect = document.getElementById('pwa-company-select');
+        if (compSelect) {
+            compSelect.addEventListener('change', (e) => {
+                this.changeCompany(e.target.value);
+            });
+        }
+
         // Live search input handler
         const searchInput = document.getElementById('sub-search-input');
         if (searchInput) {
