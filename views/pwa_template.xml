@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="pwa_template" name="ISP Billing Mobile PWA">
+        <html lang="id">
+        <head>
+            <meta charset="utf-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover"/>
+            <meta name="apple-mobile-web-app-capable" content="yes"/>
+            <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+            <title>ISP Billing Mobile PWA</title>
+
+            <!-- PWA Manifest & App Icons -->
+            <link rel="manifest" href="/isp/pwa/manifest.json"/>
+            <meta name="theme-color" content="#0d9488"/>
+
+            <!-- Font & Icons -->
+            <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+
+            <!-- PWA Custom Style -->
+            <link rel="stylesheet" href="/isp_billing_automation/static/src/pwa/pwa_style.css"/>
+        </head>
+        <body class="pwa-body">
+            
+            <!-- App Container -->
+            <div id="pwa-app">
+
+                <!-- Header Curved Gradient -->
+                <div class="pwa-header shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar-circle">
+                                <i class="fa-solid fa-user-shield text-teal"></i>
+                            </div>
+                            <div>
+                                <small class="text-white-50 d-block font-11">Selamat Datang,</small>
+                                <h6 class="text-white font-15 mb-0 fw-bold" id="user-greeting">Admin ISP</h6>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="pwa-install-btn" class="btn btn-sm btn-light rounded-pill font-11 fw-bold text-teal d-none shadow-sm">
+                                <i class="fa-solid fa-download me-1"></i> Install PWA
+                            </button>
+                            <a href="/web" class="btn-icon-head" title="Ke Web Odoo">
+                                <i class="fa-solid fa-desktop"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stats Card Carousel -->
+                    <div class="card pwa-summary-card border-0 shadow-lg p-3">
+                        <div class="row text-center g-2">
+                            <div class="col-4 border-end">
+                                <span class="d-block font-11 text-muted">Pelanggan Aktif</span>
+                                <h5 class="fw-extrabold text-success mb-0 font-18" id="stat-active">0</h5>
+                            </div>
+                            <div class="col-4 border-end">
+                                <span class="d-block font-11 text-muted">Terisolir</span>
+                                <h5 class="fw-extrabold text-danger mb-0 font-18" id="stat-isolated">0</h5>
+                            </div>
+                            <div class="col-4">
+                                <span class="d-block font-11 text-muted">Belum Lunas</span>
+                                <h5 class="fw-extrabold text-warning mb-0 font-18" id="stat-unpaid">0</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="pwa-content container-fluid px-3 pt-3 pb-5 mb-5">
+                    
+                    <!-- TAB 1: BERANDA -->
+                    <div id="tab-home" class="tab-pane active">
+                        
+                        <!-- Quick Actions Grid Menu (4x3) -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold font-14 mb-3 text-dark d-flex align-items-center">
+                                <i class="fa-solid fa-bolt text-teal me-2"></i> Menu Akses Cepat
+                            </h6>
+                            <div class="row g-2">
+                                <div class="col-3">
+                                    <div class="pwa-quick-btn" onclick="pwaApp.switchTab('subscribers', 'isolated')">
+                                        <div class="quick-icon bg-danger-subtle text-danger">
+                                            <i class="fa-solid fa-user-slash"></i>
+                                        </div>
+                                        <span>Cek Isolir</span>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="pwa-quick-btn" onclick="pwaApp.switchTab('subscribers', 'active')">
+                                        <div class="quick-icon bg-success-subtle text-success">
+                                            <i class="fa-solid fa-user-check"></i>
+                                        </div>
+                                        <span>Cek Aktif</span>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="pwa-quick-btn" onclick="pwaApp.switchTab('invoices', 'unpaid')">
+                                        <div class="quick-icon bg-warning-subtle text-warning font-16">
+                                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                                        </div>
+                                        <span>Tagihan</span>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="pwa-quick-btn" onclick="pwaApp.switchTab('routers')">
+                                        <div class="quick-icon bg-info-subtle text-info">
+                                            <i class="fa-solid fa-network-wired"></i>
+                                        </div>
+                                        <span>MikroTik</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Financial Widget -->
+                        <div class="card pwa-card mb-4 border-0 shadow-sm p-3 bg-gradient-teal text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-white-50 font-11">Total Billing Bulan Ini</small>
+                                    <h4 class="fw-bold mb-0 text-white font-20" id="stat-monthly-revenue">Rp 0</h4>
+                                </div>
+                                <div class="icon-circle-lg bg-white-20">
+                                    <i class="fa-solid fa-wallet text-white font-20"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leaderboard Preview -->
+                        <div class="card pwa-card border-0 shadow-sm p-3 mb-4">
+                            <h6 class="fw-bold font-14 mb-3 text-dark d-flex align-items-center justify-content-between">
+                                <span><i class="fa-solid fa-trophy text-warning me-2"></i> Top Pelanggan Teraktif</span>
+                                <small class="text-muted font-11">Bulan Ini</small>
+                            </h6>
+                            <div id="top-download-list" class="list-group list-group-flush">
+                                <div class="text-center py-3 text-muted font-12">Memuat data...</div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- TAB 2: PELANGGAN -->
+                    <div id="tab-subscribers" class="tab-pane d-none">
+                        
+                        <!-- Search & Filter Bar -->
+                        <div class="mb-3">
+                            <div class="input-group shadow-sm rounded-3">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                                <input type="text" id="sub-search-input" class="form-control border-start-0 ps-0 font-13" placeholder="Cari nama, IP, atau queue..."/>
+                                <button class="btn btn-outline-secondary border-start-0 bg-white text-muted" type="button" onclick="pwaApp.clearSubSearch()"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Status Filter Pills -->
+                        <div class="d-flex gap-2 mb-3 overflow-x-auto pb-1" id="sub-filter-pills">
+                            <button class="btn btn-sm btn-teal rounded-pill font-12 px-3 active" data-status="all" onclick="pwaApp.filterSubscribers('all')">Semua</button>
+                            <button class="btn btn-sm btn-outline-success rounded-pill font-12 px-3" data-status="active" onclick="pwaApp.filterSubscribers('active')">Aktif</button>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill font-12 px-3" data-status="isolated" onclick="pwaApp.filterSubscribers('isolated')">Terisolir</button>
+                        </div>
+
+                        <!-- Subscriber Card List -->
+                        <div id="subscriber-card-list">
+                            <div class="text-center py-4 text-muted">Memuat pelanggan...</div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: TAGIHAN (INVOICES) -->
+                    <div id="tab-invoices" class="tab-pane d-none">
+                        <!-- Invoice Filter Pills -->
+                        <div class="d-flex gap-2 mb-3 overflow-x-auto pb-1">
+                            <button class="btn btn-sm btn-teal rounded-pill font-12 px-3 active" id="btn-inv-unpaid" onclick="pwaApp.filterInvoices('unpaid')">Belum Lunas</button>
+                            <button class="btn btn-sm btn-outline-success rounded-pill font-12 px-3" id="btn-inv-paid" onclick="pwaApp.filterInvoices('paid')">Lunas</button>
+                        </div>
+
+                        <!-- Invoice Card List -->
+                        <div id="invoice-card-list">
+                            <div class="text-center py-4 text-muted">Memuat tagihan...</div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: ROUTER MIKROTIK -->
+                    <div id="tab-routers" class="tab-pane d-none">
+                        <h6 class="fw-bold font-14 mb-3 text-dark"><i class="fa-solid fa-server me-2 text-teal"></i> Daftar Router MikroTik</h6>
+                        <div id="router-card-list">
+                            <div class="text-center py-4 text-muted">Memuat router...</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Bottom Navigation Bar (App-Style) -->
+                <div class="pwa-bottom-nav shadow-lg d-flex justify-content-around align-items-center">
+                    <button class="nav-item active" onclick="pwaApp.switchTab('home')" id="nav-home">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Beranda</span>
+                    </button>
+                    <button class="nav-item" onclick="pwaApp.switchTab('subscribers')" id="nav-subscribers">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Pelanggan</span>
+                    </button>
+                    <button class="nav-item" onclick="pwaApp.switchTab('invoices')" id="nav-invoices">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Tagihan</span>
+                    </button>
+                    <button class="nav-item" onclick="pwaApp.switchTab('routers')" id="nav-routers">
+                        <i class="fa-solid fa-network-wired"></i>
+                        <span>Router</span>
+                    </button>
+                </div>
+
+                <!-- Toast Notification Floating -->
+                <div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3 mb-5 style-toast">
+                    <div id="pwa-toast" class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body font-12" id="toast-message">
+                                Notifikasi PWA
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Scripts -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            <script src="/isp_billing_automation/static/src/pwa/pwa_app.js"></script>
+        </body>
+        </html>
+    </template>
+</odoo>

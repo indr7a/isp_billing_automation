@@ -13,6 +13,19 @@
               action="action_isp_billing_dashboard"
               sequence="1"/>
 
+    <!-- Mobile PWA App URL Action -->
+    <record id="action_isp_mobile_pwa_url" model="ir.actions.act_url">
+        <field name="name">Mobile PWA App</field>
+        <field name="url">/isp/pwa</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_isp_mobile_pwa"
+              name="Mobile PWA (HP)"
+              parent="menu_isp_root"
+              action="action_isp_mobile_pwa_url"
+              sequence="2"/>
+
     <!-- Jaringan & Router Category -->
     <menuitem id="menu_isp_network"
               name="Jaringan &amp; Router"

@@ -3,10 +3,11 @@
     'name': 'ISP Billing & MikroTik Automation',
     'version': '17.0.1.0.0',
     'category': 'Services/ISP',
-    'summary': 'Automated ISP Billing, MikroTik PPP Isolation & WhatsApp Notifications',
+    'summary': 'Automated ISP Billing, MikroTik PPP Isolation, Mobile PWA & WhatsApp Notifications',
     'description': """
         ISP Billing & MikroTik Automation Module for Odoo 17
         ====================================================
+        * Mobile PWA (Progressive Web App) Interface for Smartphone Field Control & Billing (`/isp/pwa`).
         * MikroTik Router Connection & Management via RouterOS API.
         * Automatic PPP User & Static IP Enable/Disable (Isolir) based on invoice payment status.
         * WhatsApp Notifications for Payment Reminders (H-3), Overdue Notices, and Isolation/Reactivation alerts.
@@ -23,6 +24,7 @@
         'security/ir.model.access.csv',
         'data/cron_jobs.xml',
         'wizards/subscriber_action_wizard_views.xml',
+        'views/pwa_template.xml',
         'views/dashboard_views.xml',
         'views/mikrotik_router_views.xml',
         'views/res_partner_views.xml',
