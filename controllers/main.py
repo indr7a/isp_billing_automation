@@ -13,7 +13,7 @@ class ISPBillingPWAController(http.Controller):
     def pwa_index(self, **kw):
         """Renders the Mobile PWA App Shell with Multi-Company support"""
         user = request.env.user
-        allowed_companies = user.company_ids
+        allowed_companies = request.env['res.company'].sudo().search([])
         return request.render('isp_billing_automation.pwa_template', {
             'user': user,
             'company': request.env.company,
@@ -83,18 +83,18 @@ class ISPBillingPWAController(http.Controller):
 
     def _get_target_company_ids(self, selected_company_id=None):
         """Helper to get list of target company IDs based on selection"""
-        user = request.env.user
-        allowed_company_ids = user.company_ids.ids or [request.env.company.id]
+        all_companies = request.env['res.company'].sudo().search([])
+        all_comp_ids = all_companies.ids
 
         if selected_company_id and selected_company_id != 'all':
             try:
                 comp_id = int(selected_company_id)
-                if comp_id in allowed_company_ids:
+                if comp_id in all_comp_ids:
                     return [comp_id]
             except (ValueError, TypeError):
                 pass
         elif selected_company_id == 'all':
-            return allowed_company_ids
+            return all_comp_ids
 
         # Default fallback to active session company
         return [request.env.company.id]
@@ -179,28 +179,20 @@ class ISPBillingPWAController(http.Controller):
                 'last_sync': r.last_sync.strftime('%d-%m-%Y %H:%M') if r.last_sync else '-'
             })
 
-        # Top leaderboards from get_dashboard_data()
-        top_download_list = []
-        try:
-            dashboard_service = request.env['isp.dashboard.service'].sudo().create({})
-            summary = dashboard_service.get_dashboard_data()
-            raw_top = summary.get('top_download', [])[:5]
-            for item in raw_top:
-                rx = item.get('rx_bytes', 0)
-                tx = item.get('tx_bytes', 0)
-                top_download_list.append({
-                    'name': item.get('name', 'User'),
-                    'queue': item.get('queue_name') or item.get('ip_address') or '-',
-                    'bytes': self._format_bytes(rx + tx)
-                })
-        except Exception as e_dash:
-            _logger.warning(f"Failed getting dashboard traffic stats: {str(e_dash)}")
+        # Instant non-blocking top subscribers preview
+        top_subscribers = Partner.search([('is_isp_subscriber', '=', True)] + partner_domain, order='monthly_fee desc', limit=5)
+        top_download_list = [{
+            'name': s.name,
+            'queue': s.simple_queue_name or s.ip_address or s.ppp_username or '-',
+            'bytes': f"Rp {s.monthly_fee:,.0f}".replace(",", ".") if s.monthly_fee else "Paket Standar"
+        } for s in top_subscribers]
 
         # Companies list for user switcher
+        all_comp_recs = request.env['res.company'].sudo().search([])
         user_companies = [{
             'id': c.id,
             'name': c.name
-        } for c in request.env.user.company_ids]
+        } for c in all_comp_recs]
 
         current_company_name = "Semua Perusahaan"
         if selected_company_id and selected_company_id != 'all':
