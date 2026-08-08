@@ -35,7 +35,7 @@
                             </div>
                             <div>
                                 <small class="text-white-50 d-block font-11">Selamat Datang,</small>
-                                <h6 class="text-white font-15 mb-0 fw-bold" id="user-greeting"><t t-escaped="user.name"/></h6>
+                                <h6 class="text-white font-15 mb-0 fw-bold" id="user-greeting"><t t-esc="user.name"/></h6>
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
@@ -49,13 +49,13 @@
                     </div>
 
                     <!-- Multi-Company Selector Pill -->
-                    <div class="mb-3" t-if="allowed_companies and len(allowed_companies) &gt; 1">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white-20 text-white border-0 font-11"><i class="fa-solid fa-building me-1"></i> Company:</span>
-                            <select id="pwa-company-select" class="form-select form-select-sm bg-white-20 text-white border-0 font-11 font-weight-bold" onchange="pwaApp.changeCompany(this.value)">
-                                <option value="all" class="text-dark">Semua Perusahaan (Multi-Company)</option>
+                    <div class="mb-3">
+                        <div class="input-group input-group-sm rounded-3 shadow-sm overflow-hidden">
+                            <span class="input-group-text bg-white-20 text-white border-0 font-11 fw-bold"><i class="fa-solid fa-building me-1"></i> Company:</span>
+                            <select id="pwa-company-select" class="form-select form-select-sm bg-white text-dark border-0 font-11 fw-bold" onchange="pwaApp.changeCompany(this.value)">
+                                <option value="all">Semua Perusahaan (Multi-Company)</option>
                                 <t t-foreach="allowed_companies" t-as="comp">
-                                    <option t-att-value="comp.id" t-att-selected="comp.id == company.id" class="text-dark"><t t-escaped="comp.name"/></option>
+                                    <option t-att-value="comp.id" t-att-selected="comp.id == company.id"><t t-esc="comp.name"/></option>
                                 </t>
                             </select>
                         </div>

@@ -81,8 +81,8 @@ class ISPBillingPWAController(http.Controller):
             headers=[('Content-Type', 'application/javascript;charset=utf-8')]
         )
 
-    def _get_company_domain(self, selected_company_id=None):
-        """Returns strict multi-company domain matching selected company or active user company"""
+    def _get_target_company_ids(self, selected_company_id=None):
+        """Helper to get list of target company IDs based on selection"""
         user = request.env.user
         allowed_company_ids = user.company_ids.ids or [request.env.company.id]
 
@@ -90,15 +90,26 @@ class ISPBillingPWAController(http.Controller):
             try:
                 comp_id = int(selected_company_id)
                 if comp_id in allowed_company_ids:
-                    return ['|', ('company_id', '=', False), ('company_id', '=', comp_id)]
+                    return [comp_id]
             except (ValueError, TypeError):
                 pass
         elif selected_company_id == 'all':
-            return ['|', ('company_id', '=', False), ('company_id', 'in', allowed_company_ids)]
+            return allowed_company_ids
 
-        # Default fallback if no company selected: use active session company
-        session_comp_id = request.env.company.id
-        return ['|', ('company_id', '=', False), ('company_id', '=', session_comp_id)]
+        # Default fallback: return all allowed user companies
+        return allowed_company_ids
+
+    def _get_partner_company_domain(self, selected_company_id=None):
+        comp_ids = self._get_target_company_ids(selected_company_id)
+        return ['|', '|', ('company_id', '=', False), ('company_id', 'in', comp_ids), ('mikrotik_id.company_id', 'in', comp_ids)]
+
+    def _get_invoice_company_domain(self, selected_company_id=None):
+        comp_ids = self._get_target_company_ids(selected_company_id)
+        return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
+
+    def _get_router_company_domain(self, selected_company_id=None):
+        comp_ids = self._get_target_company_ids(selected_company_id)
+        return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
 
     @http.route('/isp/pwa/api/dashboard', type='json', auth='user')
     def get_dashboard_data(self, selected_company_id=None):
@@ -107,10 +118,12 @@ class ISPBillingPWAController(http.Controller):
         Invoice = request.env['account.move'].sudo()
         Router = request.env['isp.mikrotik.router'].sudo()
 
-        comp_domain = self._get_company_domain(selected_company_id)
+        partner_domain = self._get_partner_company_domain(selected_company_id)
+        invoice_domain = self._get_invoice_company_domain(selected_company_id)
+        router_domain = self._get_router_company_domain(selected_company_id)
 
         # Subscribers count
-        domain_sub = [('is_isp_subscriber', '=', True)] + comp_domain
+        domain_sub = [('is_isp_subscriber', '=', True)] + partner_domain
         total_subscribers = Partner.search_count(domain_sub)
         active_subscribers = Partner.search_count(domain_sub + [('service_status', '=', 'active')])
         isolated_subscribers = Partner.search_count(domain_sub + [('service_status', '=', 'isolated')])
@@ -123,7 +136,7 @@ class ISPBillingPWAController(http.Controller):
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
             ('invoice_date', '>=', first_day_month)
-        ] + comp_domain
+        ] + invoice_domain
 
         monthly_invoices = Invoice.search(domain_inv_month)
         monthly_revenue = sum(monthly_invoices.mapped('amount_total'))
@@ -132,13 +145,13 @@ class ISPBillingPWAController(http.Controller):
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
             ('payment_state', 'not in', ['paid', 'in_payment'])
-        ] + comp_domain)
+        ] + invoice_domain)
 
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
 
         # Router statuses & per-router subscriber count
-        routers = Router.search(comp_domain)
+        routers = Router.search(router_domain)
         router_data = []
         for r in routers:
             sub_count = Partner.search_count([('is_isp_subscriber', '=', True), ('mikrotik_id', '=', r.id)])
@@ -165,7 +178,7 @@ class ISPBillingPWAController(http.Controller):
             'name': c.name
         } for c in request.env.user.company_ids]
 
-        current_company_name = request.env.company.name
+        current_company_name = "Semua Perusahaan"
         if selected_company_id and selected_company_id != 'all':
             try:
                 comp_rec = request.env['res.company'].sudo().browse(int(selected_company_id))
@@ -173,14 +186,14 @@ class ISPBillingPWAController(http.Controller):
                     current_company_name = comp_rec.name
             except Exception:
                 pass
-        elif selected_company_id == 'all':
-            current_company_name = "Semua Perusahaan (Multi-Company)"
+        elif not selected_company_id:
+            current_company_name = request.env.company.name
 
         return {
             'success': True,
             'user_name': request.env.user.name,
             'current_company_name': current_company_name,
-            'selected_company_id': selected_company_id or str(request.env.company.id),
+            'selected_company_id': selected_company_id or 'all',
             'user_companies': user_companies,
             'total_subscribers': total_subscribers,
             'active_subscribers': active_subscribers,
@@ -198,9 +211,9 @@ class ISPBillingPWAController(http.Controller):
     def get_subscribers(self, q='', status='all', selected_company_id=None):
         """JSON API returning filtered subscriber list with Multi-Company support"""
         Partner = request.env['res.partner'].sudo()
-        comp_domain = self._get_company_domain(selected_company_id)
+        partner_domain = self._get_partner_company_domain(selected_company_id)
 
-        domain = [('is_isp_subscriber', '=', True)] + comp_domain
+        domain = [('is_isp_subscriber', '=', True)] + partner_domain
         
         if status in ['active', 'isolated', 'terminated']:
             domain.append(('service_status', '=', status))
@@ -240,12 +253,12 @@ class ISPBillingPWAController(http.Controller):
     def get_invoices(self, q='', filter_state='unpaid', selected_company_id=None):
         """JSON API returning invoice list with Multi-Company support"""
         Invoice = request.env['account.move'].sudo()
-        comp_domain = self._get_company_domain(selected_company_id)
+        invoice_domain = self._get_invoice_company_domain(selected_company_id)
 
         domain = [
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted')
-        ] + comp_domain
+        ] + invoice_domain
 
         if filter_state == 'unpaid':
             domain.append(('payment_state', 'not in', ['paid', 'in_payment']))
