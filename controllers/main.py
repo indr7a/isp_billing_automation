@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 class ISPBillingPWAController(http.Controller):
 
-    @http.route('/isp/pwa', type='http', auth='user', website=True, sitemap=False)
+    @http.route('/isp/pwa', type='http', auth='user', website=False)
     def pwa_index(self, **kw):
         """Renders the Mobile PWA App Shell"""
         return request.render('isp_billing_automation.pwa_template', {
