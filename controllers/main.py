@@ -20,17 +20,6 @@ class ISPBillingPWAController(http.Controller):
             'allowed_companies': allowed_companies,
         })
 
-    @http.route(['/isp_billing_automation/static/src/img/icon-192.png', '/isp_billing_automation/static/src/img/icon-512.png', '/isp/pwa/icon.png'], type='http', auth='public', cors='*')
-    def pwa_icon(self, **kw):
-        """Serves dynamic PWA App Icon"""
-        import base64
-        # Valid teal 1x1 PNG icon
-        png_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
-        return request.make_response(
-            png_data,
-            headers=[('Content-Type', 'image/png')]
-        )
-
     @http.route('/isp/pwa/manifest.json', type='http', auth='public', cors='*')
     def pwa_manifest(self, **kw):
         """Serves the PWA Web App Manifest"""
@@ -58,6 +47,17 @@ class ISPBillingPWAController(http.Controller):
         return request.make_response(
             json.dumps(manifest),
             headers=[('Content-Type', 'application/json;charset=utf-8')]
+        )
+
+    @http.route(['/isp_billing_automation/static/src/img/icon-192.png', '/isp_billing_automation/static/src/img/icon-512.png', '/isp/pwa/icon.png'], type='http', auth='public', cors='*')
+    def pwa_icon(self, **kw):
+        """Serves dynamic PWA App Icon"""
+        import base64
+        # Valid teal 1x1 PNG icon
+        png_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+        return request.make_response(
+            png_data,
+            headers=[('Content-Type', 'image/png')]
         )
 
     @http.route('/isp/pwa/sw.js', type='http', auth='public', cors='*')
@@ -97,30 +97,36 @@ class ISPBillingPWAController(http.Controller):
         all_companies = request.env['res.company'].sudo().search([])
         all_comp_ids = all_companies.ids
 
-        if selected_company_id and selected_company_id != 'all':
+        if selected_company_id and str(selected_company_id).lower() != 'all':
             try:
                 comp_id = int(selected_company_id)
                 if comp_id in all_comp_ids:
-                    return [comp_id]
+                    return [comp_id], False
             except (ValueError, TypeError):
                 pass
-        elif selected_company_id == 'all':
-            return all_comp_ids
 
-        # Default fallback to active session company
-        return [request.env.company.id]
+        return all_comp_ids, True
 
     def _get_partner_company_domain(self, selected_company_id=None):
-        comp_ids = self._get_target_company_ids(selected_company_id)
-        return ['|', '|', ('company_id', '=', False), ('company_id', 'in', comp_ids), ('mikrotik_id.company_id', 'in', comp_ids)]
+        comp_ids, is_all = self._get_target_company_ids(selected_company_id)
+        if is_all:
+            return ['|', '|', ('company_id', '=', False), ('company_id', 'in', comp_ids), ('mikrotik_id.company_id', 'in', comp_ids)]
+        else:
+            return ['|', ('company_id', 'in', comp_ids), ('mikrotik_id.company_id', 'in', comp_ids)]
 
     def _get_invoice_company_domain(self, selected_company_id=None):
-        comp_ids = self._get_target_company_ids(selected_company_id)
-        return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
+        comp_ids, is_all = self._get_target_company_ids(selected_company_id)
+        if is_all:
+            return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
+        else:
+            return [('company_id', 'in', comp_ids)]
 
     def _get_router_company_domain(self, selected_company_id=None):
-        comp_ids = self._get_target_company_ids(selected_company_id)
-        return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
+        comp_ids, is_all = self._get_target_company_ids(selected_company_id)
+        if is_all:
+            return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
+        else:
+            return [('company_id', 'in', comp_ids)]
 
     def _format_bytes(self, size_bytes):
         if not size_bytes or size_bytes <= 0:
@@ -206,7 +212,7 @@ class ISPBillingPWAController(http.Controller):
         } for c in all_comp_recs]
 
         current_company_name = "Semua Perusahaan"
-        if selected_company_id and selected_company_id != 'all':
+        if selected_company_id and str(selected_company_id).lower() != 'all':
             try:
                 comp_rec = request.env['res.company'].sudo().browse(int(selected_company_id))
                 if comp_rec.exists():
@@ -220,7 +226,7 @@ class ISPBillingPWAController(http.Controller):
             'success': True,
             'user_name': request.env.user.name,
             'current_company_name': current_company_name,
-            'selected_company_id': selected_company_id or str(request.env.company.id),
+            'selected_company_id': str(selected_company_id) if selected_company_id else 'all',
             'user_companies': user_companies,
             'total_subscribers': total_subscribers,
             'active_subscribers': active_subscribers,

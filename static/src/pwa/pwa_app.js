@@ -43,16 +43,11 @@ class ISPBillingPWA {
         this.selectedCompanyId = companyId;
         this.showToast(`Memuat data untuk perusahaan yang dipilih...`, true);
 
-        // Reload data for all tabs dynamically
+        // Reload data for ALL tabs immediately when company changes
         this.loadDashboardData();
-
-        if (this.currentTab === 'subscribers') {
-            this.loadSubscribers('', this.currentSubStatus);
-        } else if (this.currentTab === 'invoices') {
-            this.loadInvoices('', this.currentInvStatus);
-        } else if (this.currentTab === 'routers') {
-            this.loadRouters();
-        }
+        this.loadSubscribers('', this.currentSubStatus);
+        this.loadInvoices('', this.currentInvStatus);
+        this.loadRouters();
     }
 
     // Helper for Odoo JSON-RPC API call
