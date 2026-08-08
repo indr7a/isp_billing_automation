@@ -148,7 +148,31 @@ class ISPBillingPWA {
                 selectEl.value = res.selected_company_id;
             }
 
-            // Render Top Download Leaderboard
+            // 1. Render Real-time Interface Traffic
+            const ifaceListEl = document.getElementById('interface-traffic-list');
+            if (ifaceListEl) {
+                if (res.traffic_interfaces && res.traffic_interfaces.length > 0) {
+                    ifaceListEl.innerHTML = res.traffic_interfaces.map(iface => `
+                        <div class="col-6">
+                            <div class="p-2 border rounded-3 bg-light">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold font-12 text-dark"><i class="fa-solid fa-plug me-1 ${iface.running ? 'text-success' : 'text-secondary'}"></i> ${iface.name}</span>
+                                    <small class="font-9 badge ${iface.running ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}">${iface.running ? 'UP' : 'DOWN'}</small>
+                                </div>
+                                <div class="font-10 text-muted d-flex justify-content-between">
+                                    <span><i class="fa-solid fa-arrow-down text-teal"></i> ${iface.rx_speed}</span>
+                                    <span><i class="fa-solid fa-arrow-up text-primary"></i> ${iface.tx_speed}</span>
+                                </div>
+                                <div class="font-9 text-muted text-end mt-1">${iface.rx_total} Total</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    ifaceListEl.innerHTML = '<div class="text-center py-3 text-muted font-12">Belum ada data trafik interface</div>';
+                }
+            }
+
+            // 2. Render Simple Queue Bandwidth Leaderboard
             const topListEl = document.getElementById('top-download-list');
             if (topListEl) {
                 if (res.top_download && res.top_download.length > 0) {
@@ -161,11 +185,14 @@ class ISPBillingPWA {
                                     <small class="text-muted font-11">${item.queue || item.ip}</small>
                                 </div>
                             </div>
-                            <span class="badge bg-teal-subtle text-teal font-11 fw-bold">${item.bytes}</span>
+                            <div class="text-end">
+                                <span class="badge bg-teal-subtle text-teal font-11 fw-bold d-block mb-1">${item.bandwidth_str}</span>
+                                <small class="font-10 text-muted">${item.bytes_str}</small>
+                            </div>
                         </div>
                     `).join('');
                 } else {
-                    topListEl.innerHTML = '<div class="text-center py-3 text-muted font-12">Belum ada statistik trafik data</div>';
+                    topListEl.innerHTML = '<div class="text-center py-3 text-muted font-12">Belum ada data Simple Queue</div>';
                 }
             }
         }

@@ -45,15 +45,16 @@ class ISPBillingPWAController(http.Controller):
             headers=[('Content-Type', 'application/json;charset=utf-8')]
         )
 
-    @http.route(['/isp_billing_automation/static/src/img/icon-192.png', '/isp_billing_automation/static/src/img/icon-512.png', '/isp/pwa/icon.png'], type='http', auth='public', cors='*')
+    @http.route(['/isp_billing_automation/static/src/img/icon-192.png', '/isp_billing_automation/static/src/img/icon-512.png', '/isp/pwa/icon.svg', '/isp/pwa/icon.png'], type='http', auth='public', cors='*')
     def pwa_icon(self, **kw):
-        """Serves dynamic PWA App Icon"""
-        import base64
-        # Valid teal 1x1 PNG icon
-        png_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+        """Serves dynamic PWA App SVG Icon"""
+        svg_code = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+            <rect width="512" height="512" rx="100" fill="#0d9488"/>
+            <path d="M256 160c-61.9 0-117.8 24.3-159.2 64l33.9 33.9c32.7-31.3 76.9-50.5 125.3-50.5s92.6 19.2 125.3 50.5l33.9-33.9C373.8 184.3 317.9 160 256 160zm0 96c-35.3 0-67.2 13.9-90.8 36.6l33.9 33.9c14.7-14.2 34.6-22.9 56.9-22.9s42.2 8.7 56.9 22.9l33.9-33.9C323.2 269.9 291.3 256 256 256zm0 96c-13.3 0-24 10.7-24 24s10.7 24 24 24 24-10.7 24-24-10.7-24-24-24z" fill="#ffffff"/>
+        </svg>"""
         return request.make_response(
-            png_data,
-            headers=[('Content-Type', 'image/png')]
+            svg_code,
+            headers=[('Content-Type', 'image/svg+xml')]
         )
 
     @http.route('/isp/pwa/sw.js', type='http', auth='public', cors='*')
@@ -135,6 +136,15 @@ class ISPBillingPWAController(http.Controller):
             i += 1
         return f"{b:.1f} {units[i]}"
 
+    def _format_bps(self, bits_per_sec):
+        if not bits_per_sec or bits_per_sec <= 0:
+            return "0 bps"
+        if bits_per_sec >= 1000000:
+            return f"{bits_per_sec / 1000000.0:.1f} Mbps"
+        elif bits_per_sec >= 1000:
+            return f"{bits_per_sec / 1000.0:.1f} Kbps"
+        return f"{bits_per_sec} bps"
+
     @http.route('/isp/pwa/api/dashboard', type='json', auth='user')
     def get_dashboard_data(self, selected_company_id=None):
         """JSON API returning real-time metrics for mobile dashboard with Multi-Company support"""
@@ -192,13 +202,61 @@ class ISPBillingPWAController(http.Controller):
                 'last_sync': r.last_sync.strftime('%d-%m-%Y %H:%M') if r.last_sync else '-'
             })
 
-        # Instant non-blocking top subscribers preview
-        top_subscribers = Partner.search([('is_isp_subscriber', '=', True)] + partner_domain, order='monthly_fee desc', limit=5)
-        top_download_list = [{
-            'name': s.name,
-            'queue': s.simple_queue_name or s.ip_address or s.ppp_username or '-',
-            'bytes': f"Rp {s.monthly_fee:,.0f}".replace(",", ".") if s.monthly_fee else "Paket Standar"
-        } for s in top_subscribers]
+        # Real-Time Interface Traffic & Simple Queue Bandwidth
+        traffic_interfaces = []
+        top_download_list = []
+        try:
+            target_comp_ids, _ = self._get_target_company_ids(selected_company_id)
+            dashboard_service = request.env['isp.dashboard.service'].sudo().with_context(allowed_company_ids=target_comp_ids)
+            summary = dashboard_service.get_dashboard_data()
+
+            # 1. Interfaces traffic
+            raw_interfaces = summary.get('traffic_interfaces', [])
+            for iface in raw_interfaces[:6]:
+                rx_bps = iface.get('rx_bps', 0)
+                tx_bps = iface.get('tx_bps', 0)
+                rx_bytes = iface.get('rx_bytes', 0)
+                tx_bytes = iface.get('tx_bytes', 0)
+
+                traffic_interfaces.append({
+                    'router_name': iface.get('router_name', 'Router'),
+                    'name': iface.get('name', 'ether1'),
+                    'running': iface.get('running', True),
+                    'rx_speed': self._format_bps(rx_bps),
+                    'tx_speed': self._format_bps(tx_bps),
+                    'rx_total': self._format_bytes(rx_bytes),
+                    'tx_total': self._format_bytes(tx_bytes),
+                })
+
+            # 2. Simple Queue Bandwidth Leaderboard
+            raw_top = summary.get('top_download', [])[:5]
+            for item in raw_top:
+                rx_b = item.get('rx_bytes', 0)
+                tx_b = item.get('tx_bytes', 0)
+                rx_speed = item.get('rx_bps', 0)
+                tx_speed = item.get('tx_bps', 0)
+
+                speed_str = f"↓ {self._format_bps(rx_speed)} / ↑ {self._format_bps(tx_speed)}" if (rx_speed > 0 or tx_speed > 0) else f"{self._format_bytes(rx_b + tx_b)} Total"
+                top_download_list.append({
+                    'name': item.get('name', 'Subscriber'),
+                    'queue': item.get('queue_name') or item.get('ip_address') or '-',
+                    'status': item.get('status', 'active'),
+                    'bandwidth_str': speed_str,
+                    'bytes_str': self._format_bytes(rx_b + tx_b)
+                })
+        except Exception as e_dash:
+            _logger.warning(f"Failed fetching live MikroTik traffic: {str(e_dash)}")
+
+        # Fallback if no queue data from MikroTik yet
+        if not top_download_list:
+            top_subscribers = Partner.search([('is_isp_subscriber', '=', True)] + partner_domain, limit=5)
+            top_download_list = [{
+                'name': s.name,
+                'queue': s.simple_queue_name or s.ip_address or s.ppp_username or '-',
+                'status': s.service_status or 'active',
+                'bandwidth_str': "↓ 0 bps / ↑ 0 bps",
+                'bytes_str': "0 MB Total"
+            } for s in top_subscribers]
 
         # Companies list for user switcher
         all_comp_recs = request.env['res.company'].sudo().search([])
@@ -232,6 +290,7 @@ class ISPBillingPWAController(http.Controller):
             'total_unpaid_amount': f"Rp {total_unpaid_amount:,.0f}".replace(",", "."),
             'unpaid_count': unpaid_count,
             'routers': router_data,
+            'traffic_interfaces': traffic_interfaces,
             'top_download': top_download_list,
         }
 

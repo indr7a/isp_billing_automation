@@ -141,11 +141,22 @@
                             </div>
                         </div>
 
-                        <!-- Leaderboard Preview -->
+                        <!-- Real-time Interface Traffic Monitoring Section -->
                         <div class="card pwa-card border-0 shadow-sm p-3 mb-4">
                             <h6 class="fw-bold font-14 mb-3 text-dark d-flex align-items-center justify-content-between">
-                                <span><i class="fa-solid fa-trophy text-warning me-2"></i> Top Pelanggan Teraktif</span>
-                                <small class="text-muted font-11">Bulan Ini</small>
+                                <span><i class="fa-solid fa-chart-line text-teal me-2"></i> Live Interface Traffic</span>
+                                <small class="text-muted font-11" id="live-traffic-timestamp">Realtime</small>
+                            </h6>
+                            <div id="interface-traffic-list" class="row g-2">
+                                <div class="text-center py-3 text-muted font-12">Memuat trafik interface...</div>
+                            </div>
+                        </div>
+
+                        <!-- Simple Queue Bandwidth Leaderboard Section -->
+                        <div class="card pwa-card border-0 shadow-sm p-3 mb-4">
+                            <h6 class="fw-bold font-14 mb-3 text-dark d-flex align-items-center justify-content-between">
+                                <span><i class="fa-solid fa-gauge-high text-warning me-2"></i> Simple Queue Bandwidth</span>
+                                <small class="text-muted font-11">Trafik Pelanggan</small>
                             </h6>
                             <div id="top-download-list" class="list-group list-group-flush">
                                 <div class="text-center py-3 text-muted font-12">Memuat data...</div>
