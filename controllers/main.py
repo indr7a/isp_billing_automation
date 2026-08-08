@@ -82,10 +82,10 @@ class ISPBillingPWAController(http.Controller):
         )
 
     def _get_company_domain(self, selected_company_id=None):
-        """Returns multi-company domain matching allowed user companies or selected company"""
+        """Returns strict multi-company domain matching selected company or active user company"""
         user = request.env.user
         allowed_company_ids = user.company_ids.ids or [request.env.company.id]
-        
+
         if selected_company_id and selected_company_id != 'all':
             try:
                 comp_id = int(selected_company_id)
@@ -93,8 +93,12 @@ class ISPBillingPWAController(http.Controller):
                     return ['|', ('company_id', '=', False), ('company_id', '=', comp_id)]
             except (ValueError, TypeError):
                 pass
-        
-        return ['|', ('company_id', '=', False), ('company_id', 'in', allowed_company_ids)]
+        elif selected_company_id == 'all':
+            return ['|', ('company_id', '=', False), ('company_id', 'in', allowed_company_ids)]
+
+        # Default fallback if no company selected: use active session company
+        session_comp_id = request.env.company.id
+        return ['|', ('company_id', '=', False), ('company_id', '=', session_comp_id)]
 
     @http.route('/isp/pwa/api/dashboard', type='json', auth='user')
     def get_dashboard_data(self, selected_company_id=None):
@@ -133,18 +137,23 @@ class ISPBillingPWAController(http.Controller):
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
 
-        # Router statuses
+        # Router statuses & per-router subscriber count
         routers = Router.search(comp_domain)
-        router_data = [{
-            'id': r.id,
-            'name': r.name,
-            'company_name': r.company_id.name if r.company_id else 'Semua Company',
-            'connection_mode': r.connection_mode,
-            'host': r.host,
-            'port': r.port,
-            'status': r.status,
-            'status_label': 'Connected' if r.status == 'connected' else ('Error' if r.status == 'error' else 'Draft')
-        } for r in routers]
+        router_data = []
+        for r in routers:
+            sub_count = Partner.search_count([('is_isp_subscriber', '=', True), ('mikrotik_id', '=', r.id)])
+            router_data.append({
+                'id': r.id,
+                'name': r.name,
+                'company_name': r.company_id.name if r.company_id else 'Semua Company',
+                'connection_mode': r.connection_mode,
+                'host': r.host,
+                'port': r.port,
+                'status': r.status,
+                'status_label': 'Connected' if r.status == 'connected' else ('Error' if r.status == 'error' else 'Draft'),
+                'subscriber_count': sub_count,
+                'last_sync': r.last_sync.strftime('%d-%m-%Y %H:%M') if r.last_sync else '-'
+            })
 
         # Top leaderboards
         dashboard_service = request.env['isp.dashboard.service'].sudo().create({})
@@ -158,14 +167,20 @@ class ISPBillingPWAController(http.Controller):
 
         current_company_name = request.env.company.name
         if selected_company_id and selected_company_id != 'all':
-            comp_rec = request.env['res.company'].sudo().browse(int(selected_company_id))
-            if comp_rec.exists():
-                current_company_name = comp_rec.name
+            try:
+                comp_rec = request.env['res.company'].sudo().browse(int(selected_company_id))
+                if comp_rec.exists():
+                    current_company_name = comp_rec.name
+            except Exception:
+                pass
+        elif selected_company_id == 'all':
+            current_company_name = "Semua Perusahaan (Multi-Company)"
 
         return {
             'success': True,
             'user_name': request.env.user.name,
             'current_company_name': current_company_name,
+            'selected_company_id': selected_company_id or str(request.env.company.id),
             'user_companies': user_companies,
             'total_subscribers': total_subscribers,
             'active_subscribers': active_subscribers,
@@ -267,6 +282,45 @@ class ISPBillingPWAController(http.Controller):
             'count': len(inv_list),
             'invoices': inv_list
         }
+
+    @http.route('/isp/pwa/api/test_router', type='json', auth='user')
+    def test_router_connection(self, router_id):
+        """Action endpoint to test connection to MikroTik router from Mobile PWA"""
+        Router = request.env['isp.mikrotik.router'].sudo().browse(router_id)
+        if not Router.exists():
+            return {'success': False, 'message': 'Router tidak ditemukan'}
+        try:
+            Router.action_test_connection()
+            return {
+                'success': True,
+                'message': f"Koneksi berhasil ke Router '{Router.name}' ({Router.host}:{Router.port})!",
+                'new_status': Router.status
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f"Gagal terhubung ke Router '{Router.name}': {str(e)}",
+                'new_status': 'error'
+            }
+
+    @http.route('/isp/pwa/api/sync_router_queues', type='json', auth='user')
+    def sync_router_queues(self, router_id):
+        """Action endpoint to sync simple queues from MikroTik from Mobile PWA"""
+        Router = request.env['isp.mikrotik.router'].sudo().browse(router_id)
+        if not Router.exists():
+            return {'success': False, 'message': 'Router tidak ditemukan'}
+        try:
+            res = Router.action_sync_simple_queues()
+            msg = res.get('params', {}).get('message', 'Sinkronisasi Simple Queue selesai!')
+            return {
+                'success': True,
+                'message': msg
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f"Gagal sinkronisasi: {str(e)}"
+            }
 
     @http.route('/isp/pwa/api/toggle_status', type='json', auth='user')
     def toggle_subscriber_status(self, partner_id, target_status):

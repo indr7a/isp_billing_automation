@@ -1,4 +1,4 @@
-/* ISP Billing Mobile PWA Application Logic (Multi-Company Enabled) */
+/* ISP Billing Mobile PWA Application Logic (Multi-Company & Interactive MikroTik Dashboard Enabled) */
 
 class ISPBillingPWA {
     constructor() {
@@ -41,7 +41,9 @@ class ISPBillingPWA {
     // Company Switcher Handler
     changeCompany(companyId) {
         this.selectedCompanyId = companyId;
-        this.showToast(`Berhasil berpindah ke perusahaan `, true);
+        this.showToast(`Memuat data untuk perusahaan yang dipilih...`, true);
+
+        // Reload data for all tabs dynamically
         this.loadDashboardData();
 
         if (this.currentTab === 'subscribers') {
@@ -134,7 +136,13 @@ class ISPBillingPWA {
 
             if (res.current_company_name) {
                 const labelEl = document.getElementById('company-revenue-label');
-                if (labelEl) labelEl.textContent = `Total Billing (${res.current_company_name})`;
+                if (labelEl) labelEl.textContent = `Billing (${res.current_company_name})`;
+            }
+
+            // Sync company select dropdown if needed
+            const selectEl = document.getElementById('pwa-company-select');
+            if (selectEl && res.selected_company_id) {
+                selectEl.value = res.selected_company_id;
             }
 
             // Render Top Download Leaderboard
@@ -312,27 +320,79 @@ class ISPBillingPWA {
         this.loadInvoices('', filterState);
     }
 
-    // Load Routers
+    // Load Interactive MikroTik Router Dashboard Cards
     async loadRouters() {
         const container = document.getElementById('router-card-list');
         if (!container) return;
 
+        container.innerHTML = '<div class="text-center py-4 text-muted font-12"><i class="fa-solid fa-spinner fa-spin me-2"></i>Memuat router MikroTik...</div>';
+
         const res = await this.jsonRpc('/isp/pwa/api/dashboard');
         if (res && res.success && res.routers) {
+            if (res.routers.length === 0) {
+                container.innerHTML = '<div class="text-center py-5 text-muted font-13"><i class="fa-solid fa-server fa-2x mb-2 d-block opacity-50"></i>Belum ada Router MikroTik terdaftar</div>';
+                return;
+            }
+
             container.innerHTML = res.routers.map(r => `
-                <div class="sub-card shadow-sm">
+                <div class="sub-card shadow-sm border-start border-4 ${r.status === 'connected' ? 'border-success' : 'border-danger'}">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <h6 class="fw-bold font-14 mb-1 text-dark"><i class="fa-solid fa-server me-1 text-teal"></i> ${r.name}</h6>
-                            <small class="text-muted font-11 d-block">${r.host}:${r.port} • <span class="text-teal">${r.company_name}</span></small>
+                            <h6 class="fw-bold font-15 mb-1 text-dark"><i class="fa-solid fa-server me-2 text-teal"></i> ${r.name}</h6>
+                            <small class="text-muted font-11 d-block"><i class="fa-solid fa-globe me-1"></i> ${r.host}:${r.port} • <span class="text-teal fw-bold">${r.company_name}</span></small>
                         </div>
-                        <span class="badge ${r.status === 'connected' ? 'bg-success' : 'bg-danger'} font-10 rounded-pill px-2 py-1">${r.status_label}</span>
+                        <span class="badge ${r.status === 'connected' ? 'bg-success' : 'bg-danger'} font-11 rounded-pill px-2 py-1">${r.status_label}</span>
                     </div>
-                    <div class="border-top pt-2 mt-2">
-                        <small class="text-muted font-11">Metode Koneksi: ${r.connection_mode === 'wireguard' ? 'WireGuard VPN Internal' : 'VPN Remote Pihak Ke-3'}</small>
+
+                    <div class="row text-center bg-light rounded-3 py-2 my-2 g-1">
+                        <div class="col-6 border-end">
+                            <small class="text-muted font-10 d-block">Total Pelanggan</small>
+                            <strong class="font-13 text-dark">${r.subscriber_count} User</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted font-10 d-block">Last Sync</small>
+                            <strong class="font-11 text-muted">${r.last_sync}</strong>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-2">
+                        <small class="text-muted font-11"><i class="fa-solid fa-shield-halved me-1"></i> ${r.connection_mode === 'wireguard' ? 'WireGuard Internal' : 'VPN Remote Pihak Ke-3'}</small>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary rounded-pill font-11 px-2 py-1" onclick="pwaApp.testRouter(${r.id}, '${r.name}')" title="Test Koneksi API">
+                                <i class="fa-solid fa-wifi me-1"></i> Test Koneksi
+                            </button>
+                            <button class="btn btn-sm btn-teal rounded-pill font-11 px-2 py-1" onclick="pwaApp.syncRouterQueues(${r.id}, '${r.name}')" title="Sync Simple Queues">
+                                <i class="fa-solid fa-rotate me-1"></i> Sync Queues
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
+        }
+    }
+
+    // 1-Click Action: Test Connection to Router
+    async testRouter(routerId, routerName) {
+        this.showToast(`Menguji koneksi ke ${routerName}...`, true);
+        const res = await this.jsonRpc('/isp/pwa/api/test_router', { router_id: routerId });
+        if (res && res.success) {
+            this.showToast(res.message, true);
+        } else {
+            this.showToast(res ? res.message : 'Gagal terhubung ke Router', false);
+        }
+        this.loadRouters();
+    }
+
+    // 1-Click Action: Sync Simple Queues from Router
+    async syncRouterQueues(routerId, routerName) {
+        this.showToast(`Menyinkronkan Simple Queue dari ${routerName}...`, true);
+        const res = await this.jsonRpc('/isp/pwa/api/sync_router_queues', { router_id: routerId });
+        if (res && res.success) {
+            this.showToast(res.message, true);
+            this.loadDashboardData();
+            this.loadRouters();
+        } else {
+            this.showToast(res ? res.message : 'Gagal menyinkronkan Simple Queue', false);
         }
     }
 
