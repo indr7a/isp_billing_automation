@@ -1,10 +1,11 @@
-/* ISP Billing Mobile PWA Application Logic */
+/* ISP Billing Mobile PWA Application Logic (Multi-Company Enabled) */
 
 class ISPBillingPWA {
     constructor() {
         this.currentTab = 'home';
         this.currentSubStatus = 'all';
         this.currentInvStatus = 'unpaid';
+        this.selectedCompanyId = 'all';
         this.subscribersData = [];
         this.deferredPrompt = null;
 
@@ -13,6 +14,10 @@ class ISPBillingPWA {
 
     init() {
         document.addEventListener('DOMContentLoaded', () => {
+            const compSelect = document.getElementById('pwa-company-select');
+            if (compSelect) {
+                this.selectedCompanyId = compSelect.value || 'all';
+            }
             this.loadDashboardData();
             this.bindEvents();
             this.initPWAInstall();
@@ -33,9 +38,25 @@ class ISPBillingPWA {
         }
     }
 
+    // Company Switcher Handler
+    changeCompany(companyId) {
+        this.selectedCompanyId = companyId;
+        this.showToast(`Berhasil berpindah ke perusahaan `, true);
+        this.loadDashboardData();
+
+        if (this.currentTab === 'subscribers') {
+            this.loadSubscribers('', this.currentSubStatus);
+        } else if (this.currentTab === 'invoices') {
+            this.loadInvoices('', this.currentInvStatus);
+        } else if (this.currentTab === 'routers') {
+            this.loadRouters();
+        }
+    }
+
     // Helper for Odoo JSON-RPC API call
     async jsonRpc(url, params = {}) {
         try {
+            params.selected_company_id = this.selectedCompanyId;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -51,7 +72,7 @@ class ISPBillingPWA {
             const data = await response.json();
             if (data.error) {
                 console.error("RPC Error:", data.error);
-                return { success: False, message: data.error.data ? data.error.data.message : 'Error Server' };
+                return { success: false, message: data.error.data ? data.error.data.message : 'Error Server' };
             }
             return data.result;
         } catch (err) {
@@ -105,11 +126,16 @@ class ISPBillingPWA {
     async loadDashboardData() {
         const res = await this.jsonRpc('/isp/pwa/api/dashboard');
         if (res && res.success) {
-            document.getElementById('user-greeting').textContent = res.user_name || 'Admin';
+            if (res.user_name) document.getElementById('user-greeting').textContent = res.user_name;
             document.getElementById('stat-active').textContent = res.active_subscribers;
             document.getElementById('stat-isolated').textContent = res.isolated_subscribers;
             document.getElementById('stat-unpaid').textContent = res.unpaid_count;
             document.getElementById('stat-monthly-revenue').textContent = res.monthly_revenue;
+
+            if (res.current_company_name) {
+                const labelEl = document.getElementById('company-revenue-label');
+                if (labelEl) labelEl.textContent = `Total Billing (${res.current_company_name})`;
+            }
 
             // Render Top Download Leaderboard
             const topListEl = document.getElementById('top-download-list');
@@ -139,7 +165,7 @@ class ISPBillingPWA {
         const container = document.getElementById('subscriber-card-list');
         if (!container) return;
 
-        container.innerHTML = '<div class="text-center py-4 text-muted font-12"><i class="fa-solid fa-spinner fa-spin me-2"></i>Memuat data pelanggan...</div>';
+        container.innerHTML = '<div class="text-center py-4 text-muted font-12"><i class="fa-solid fa-spinner fa-spin me-2"></i>Memuat pelanggan...</div>';
 
         const res = await this.jsonRpc('/isp/pwa/api/subscribers', { q: query, status: status });
         if (res && res.success) {
@@ -167,7 +193,7 @@ class ISPBillingPWA {
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <h6 class="fw-bold font-14 mb-1 text-dark">${sub.name}</h6>
-                                <small class="text-muted font-11 d-block"><i class="fa-solid fa-network-wired me-1"></i> ${sub.ip_address} (${sub.connection_type_label})</small>
+                                <small class="text-muted font-11 d-block"><i class="fa-solid fa-network-wired me-1"></i> ${sub.ip_address} (${sub.connection_type_label}) • <span class="text-teal">${sub.company_name}</span></small>
                             </div>
                             ${statusBadge}
                         </div>
@@ -256,7 +282,7 @@ class ISPBillingPWA {
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <h6 class="fw-bold font-14 mb-1 text-dark">${inv.partner_name}</h6>
-                                <small class="text-muted font-11 d-block"><i class="fa-solid fa-file-invoice me-1"></i> ${inv.name}</small>
+                                <small class="text-muted font-11 d-block"><i class="fa-solid fa-file-invoice me-1"></i> ${inv.name} • <span class="text-teal">${inv.company_name}</span></small>
                             </div>
                             <span class="${badgeClass}">${statusText}</span>
                         </div>
@@ -298,7 +324,7 @@ class ISPBillingPWA {
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
                             <h6 class="fw-bold font-14 mb-1 text-dark"><i class="fa-solid fa-server me-1 text-teal"></i> ${r.name}</h6>
-                            <small class="text-muted font-11 d-block">${r.host}:${r.port}</small>
+                            <small class="text-muted font-11 d-block">${r.host}:${r.port} • <span class="text-teal">${r.company_name}</span></small>
                         </div>
                         <span class="badge ${r.status === 'connected' ? 'bg-success' : 'bg-danger'} font-10 rounded-pill px-2 py-1">${r.status_label}</span>
                     </div>

@@ -11,10 +11,13 @@ class ISPBillingPWAController(http.Controller):
 
     @http.route('/isp/pwa', type='http', auth='user', website=False)
     def pwa_index(self, **kw):
-        """Renders the Mobile PWA App Shell"""
+        """Renders the Mobile PWA App Shell with Multi-Company support"""
+        user = request.env.user
+        allowed_companies = user.company_ids
         return request.render('isp_billing_automation.pwa_template', {
-            'user': request.env.user,
+            'user': user,
             'company': request.env.company,
+            'allowed_companies': allowed_companies,
         })
 
     @http.route('/isp/pwa/manifest.json', type='http', auth='public', cors='*')
@@ -78,16 +81,32 @@ class ISPBillingPWAController(http.Controller):
             headers=[('Content-Type', 'application/javascript;charset=utf-8')]
         )
 
+    def _get_company_domain(self, selected_company_id=None):
+        """Returns multi-company domain matching allowed user companies or selected company"""
+        user = request.env.user
+        allowed_company_ids = user.company_ids.ids or [request.env.company.id]
+        
+        if selected_company_id and selected_company_id != 'all':
+            try:
+                comp_id = int(selected_company_id)
+                if comp_id in allowed_company_ids:
+                    return ['|', ('company_id', '=', False), ('company_id', '=', comp_id)]
+            except (ValueError, TypeError):
+                pass
+        
+        return ['|', ('company_id', '=', False), ('company_id', 'in', allowed_company_ids)]
+
     @http.route('/isp/pwa/api/dashboard', type='json', auth='user')
-    def get_dashboard_data(self):
-        """JSON API returning real-time metrics for mobile dashboard"""
-        company_id = request.env.company.id
+    def get_dashboard_data(self, selected_company_id=None):
+        """JSON API returning real-time metrics for mobile dashboard with Multi-Company support"""
         Partner = request.env['res.partner'].sudo()
         Invoice = request.env['account.move'].sudo()
         Router = request.env['isp.mikrotik.router'].sudo()
 
+        comp_domain = self._get_company_domain(selected_company_id)
+
         # Subscribers count
-        domain_sub = [('is_isp_subscriber', '=', True), '|', ('company_id', '=', False), ('company_id', '=', company_id)]
+        domain_sub = [('is_isp_subscriber', '=', True)] + comp_domain
         total_subscribers = Partner.search_count(domain_sub)
         active_subscribers = Partner.search_count(domain_sub + [('service_status', '=', 'active')])
         isolated_subscribers = Partner.search_count(domain_sub + [('service_status', '=', 'isolated')])
@@ -99,26 +118,27 @@ class ISPBillingPWAController(http.Controller):
         domain_inv_month = [
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
-            ('invoice_date', '>=', first_day_month),
-            ('|'), ('company_id', '=', False), ('company_id', '=', company_id)
-        ]
+            ('invoice_date', '>=', first_day_month)
+        ] + comp_domain
+
         monthly_invoices = Invoice.search(domain_inv_month)
         monthly_revenue = sum(monthly_invoices.mapped('amount_total'))
 
         unpaid_invoices = Invoice.search([
             ('move_type', '=', 'out_invoice'),
             ('state', '=', 'posted'),
-            ('payment_state', 'not in', ['paid', 'in_payment']),
-            ('|'), ('company_id', '=', False), ('company_id', '=', company_id)
-        ])
+            ('payment_state', 'not in', ['paid', 'in_payment'])
+        ] + comp_domain)
+
         total_unpaid_amount = sum(unpaid_invoices.mapped('amount_residual'))
         unpaid_count = len(unpaid_invoices)
 
         # Router statuses
-        routers = Router.search(['|', ('company_id', '=', False), ('company_id', '=', company_id)])
+        routers = Router.search(comp_domain)
         router_data = [{
             'id': r.id,
             'name': r.name,
+            'company_name': r.company_id.name if r.company_id else 'Semua Company',
             'connection_mode': r.connection_mode,
             'host': r.host,
             'port': r.port,
@@ -130,10 +150,23 @@ class ISPBillingPWAController(http.Controller):
         dashboard_service = request.env['isp.dashboard.service'].sudo().create({})
         summary = dashboard_service.get_dashboard_summary()
 
+        # Companies list for user switcher
+        user_companies = [{
+            'id': c.id,
+            'name': c.name
+        } for c in request.env.user.company_ids]
+
+        current_company_name = request.env.company.name
+        if selected_company_id and selected_company_id != 'all':
+            comp_rec = request.env['res.company'].sudo().browse(int(selected_company_id))
+            if comp_rec.exists():
+                current_company_name = comp_rec.name
+
         return {
             'success': True,
             'user_name': request.env.user.name,
-            'company_name': request.env.company.name,
+            'current_company_name': current_company_name,
+            'user_companies': user_companies,
             'total_subscribers': total_subscribers,
             'active_subscribers': active_subscribers,
             'isolated_subscribers': isolated_subscribers,
@@ -147,12 +180,12 @@ class ISPBillingPWAController(http.Controller):
         }
 
     @http.route('/isp/pwa/api/subscribers', type='json', auth='user')
-    def get_subscribers(self, q='', status='all'):
-        """JSON API returning filtered subscriber list"""
-        company_id = request.env.company.id
+    def get_subscribers(self, q='', status='all', selected_company_id=None):
+        """JSON API returning filtered subscriber list with Multi-Company support"""
         Partner = request.env['res.partner'].sudo()
+        comp_domain = self._get_company_domain(selected_company_id)
 
-        domain = [('is_isp_subscriber', '=', True), '|', ('company_id', '=', False), ('company_id', '=', company_id)]
+        domain = [('is_isp_subscriber', '=', True)] + comp_domain
         
         if status in ['active', 'isolated', 'terminated']:
             domain.append(('service_status', '=', status))
@@ -171,6 +204,7 @@ class ISPBillingPWAController(http.Controller):
             sub_list.append({
                 'id': s.id,
                 'name': s.name,
+                'company_name': s.company_id.name if s.company_id else 'Global',
                 'connection_type': s.connection_type,
                 'connection_type_label': 'Static IP' if s.connection_type == 'static' else 'PPPoE',
                 'ip_address': s.ip_address or s.simple_queue_name or s.ppp_username or '-',
@@ -188,16 +222,15 @@ class ISPBillingPWAController(http.Controller):
         }
 
     @http.route('/isp/pwa/api/invoices', type='json', auth='user')
-    def get_invoices(self, q='', filter_state='unpaid'):
-        """JSON API returning invoice list"""
-        company_id = request.env.company.id
+    def get_invoices(self, q='', filter_state='unpaid', selected_company_id=None):
+        """JSON API returning invoice list with Multi-Company support"""
         Invoice = request.env['account.move'].sudo()
+        comp_domain = self._get_company_domain(selected_company_id)
 
         domain = [
             ('move_type', '=', 'out_invoice'),
-            ('state', '=', 'posted'),
-            ('|'), ('company_id', '=', False), ('company_id', '=', company_id)
-        ]
+            ('state', '=', 'posted')
+        ] + comp_domain
 
         if filter_state == 'unpaid':
             domain.append(('payment_state', 'not in', ['paid', 'in_payment']))
@@ -216,6 +249,7 @@ class ISPBillingPWAController(http.Controller):
             inv_list.append({
                 'id': inv.id,
                 'name': inv.name,
+                'company_name': inv.company_id.name if inv.company_id else 'Global',
                 'partner_name': inv.partner_id.name,
                 'partner_id': inv.partner_id.id,
                 'partner_mobile': inv.partner_id.mobile or inv.partner_id.phone or '',
@@ -250,7 +284,7 @@ class ISPBillingPWAController(http.Controller):
 
         if success:
             Partner.service_status = target_status
-            msg = f"Layanan pelanggan '{Partner.name}' berhasil {'DIATIFKAN (Un-Isolir)' if enable else 'DIISOLIR'} di MikroTik & Odoo!"
+            msg = f"Layanan pelanggan '{Partner.name}' berhasil {'DIAKTIFKAN (Un-Isolir)' if enable else 'DIISOLIR'} di MikroTik & Odoo!"
             return {
                 'success': True,
                 'message': msg,
