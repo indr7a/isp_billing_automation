@@ -18,7 +18,8 @@ class ISPDashboardService(models.AbstractModel):
         Router = self.env['isp.mikrotik.router']
         Log = self.env['isp.log']
 
-        active_company_ids = self.env.companies.ids
+        # Support allowed_company_ids context parameter passed from PWA controller or fallback to all allowed user companies
+        active_company_ids = self.env.context.get('allowed_company_ids') or self.env.companies.ids or self.env['res.company'].sudo().search([]).ids
 
         # 1. Fetch Routers active in current company selection
         routers = Router.search([
