@@ -96,8 +96,8 @@ class ISPBillingPWAController(http.Controller):
         elif selected_company_id == 'all':
             return allowed_company_ids
 
-        # Default fallback: return all allowed user companies
-        return allowed_company_ids
+        # Default fallback to active session company
+        return [request.env.company.id]
 
     def _get_partner_company_domain(self, selected_company_id=None):
         comp_ids = self._get_target_company_ids(selected_company_id)
@@ -110,6 +110,17 @@ class ISPBillingPWAController(http.Controller):
     def _get_router_company_domain(self, selected_company_id=None):
         comp_ids = self._get_target_company_ids(selected_company_id)
         return ['|', ('company_id', '=', False), ('company_id', 'in', comp_ids)]
+
+    def _format_bytes(self, size_bytes):
+        if not size_bytes or size_bytes <= 0:
+            return "0 B"
+        units = ['B', 'KB', 'MB', 'GB', 'TB']
+        i = 0
+        b = float(size_bytes)
+        while b >= 1024 and i < len(units) - 1:
+            b /= 1024.0
+            i += 1
+        return f"{b:.1f} {units[i]}"
 
     @http.route('/isp/pwa/api/dashboard', type='json', auth='user')
     def get_dashboard_data(self, selected_company_id=None):
@@ -168,9 +179,22 @@ class ISPBillingPWAController(http.Controller):
                 'last_sync': r.last_sync.strftime('%d-%m-%Y %H:%M') if r.last_sync else '-'
             })
 
-        # Top leaderboards
-        dashboard_service = request.env['isp.dashboard.service'].sudo().create({})
-        summary = dashboard_service.get_dashboard_summary()
+        # Top leaderboards from get_dashboard_data()
+        top_download_list = []
+        try:
+            dashboard_service = request.env['isp.dashboard.service'].sudo().create({})
+            summary = dashboard_service.get_dashboard_data()
+            raw_top = summary.get('top_download', [])[:5]
+            for item in raw_top:
+                rx = item.get('rx_bytes', 0)
+                tx = item.get('tx_bytes', 0)
+                top_download_list.append({
+                    'name': item.get('name', 'User'),
+                    'queue': item.get('queue_name') or item.get('ip_address') or '-',
+                    'bytes': self._format_bytes(rx + tx)
+                })
+        except Exception as e_dash:
+            _logger.warning(f"Failed getting dashboard traffic stats: {str(e_dash)}")
 
         # Companies list for user switcher
         user_companies = [{
@@ -193,7 +217,7 @@ class ISPBillingPWAController(http.Controller):
             'success': True,
             'user_name': request.env.user.name,
             'current_company_name': current_company_name,
-            'selected_company_id': selected_company_id or 'all',
+            'selected_company_id': selected_company_id or str(request.env.company.id),
             'user_companies': user_companies,
             'total_subscribers': total_subscribers,
             'active_subscribers': active_subscribers,
@@ -203,8 +227,7 @@ class ISPBillingPWAController(http.Controller):
             'total_unpaid_amount': f"Rp {total_unpaid_amount:,.0f}".replace(",", "."),
             'unpaid_count': unpaid_count,
             'routers': router_data,
-            'top_download': summary.get('top_download', [])[:5],
-            'top_upload': summary.get('top_upload', [])[:5],
+            'top_download': top_download_list,
         }
 
     @http.route('/isp/pwa/api/subscribers', type='json', auth='user')
