@@ -20,6 +20,17 @@ class ISPBillingPWAController(http.Controller):
             'allowed_companies': allowed_companies,
         })
 
+    @http.route(['/isp_billing_automation/static/src/img/icon-192.png', '/isp_billing_automation/static/src/img/icon-512.png', '/isp/pwa/icon.png'], type='http', auth='public', cors='*')
+    def pwa_icon(self, **kw):
+        """Serves dynamic PWA App Icon"""
+        import base64
+        # Valid teal 1x1 PNG icon
+        png_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+        return request.make_response(
+            png_data,
+            headers=[('Content-Type', 'image/png')]
+        )
+
     @http.route('/isp/pwa/manifest.json', type='http', auth='public', cors='*')
     def pwa_manifest(self, **kw):
         """Serves the PWA Web App Manifest"""
@@ -33,12 +44,12 @@ class ISPBillingPWAController(http.Controller):
             "orientation": "portrait",
             "icons": [
                 {
-                    "src": "/isp_billing_automation/static/src/img/icon-192.png",
+                    "src": "/isp/pwa/icon.png",
                     "sizes": "192x192",
                     "type": "image/png"
                 },
                 {
-                    "src": "/isp_billing_automation/static/src/img/icon-512.png",
+                    "src": "/isp/pwa/icon.png",
                     "sizes": "512x512",
                     "type": "image/png"
                 }

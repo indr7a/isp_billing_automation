@@ -426,5 +426,6 @@ class ISPBillingPWA {
     }
 }
 
-// Instantiate PWA App
-const pwaApp = new ISPBillingPWA();
+// Instantiate & expose PWA App on global window object for HTML inline handlers
+window.pwaApp = new ISPBillingPWA();
+const pwaApp = window.pwaApp;
